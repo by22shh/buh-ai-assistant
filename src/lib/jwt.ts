@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+// Логируем при загрузке модуля для отладки
+console.log('🔐 JWT Module loaded');
+console.log('🔑 JWT_SECRET exists:', !!process.env.JWT_SECRET);
+console.log('🔑 JWT_SECRET value:', JWT_SECRET.substring(0, 30) + '...');
+console.log('⏰ JWT_EXPIRES_IN:', JWT_EXPIRES_IN);
+
 export interface JWTPayload {
   userId: string;
   email: string;
