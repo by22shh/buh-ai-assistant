@@ -49,11 +49,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Отладка: показываем все cookies
+  console.log('🔍 Middleware checking:', pathname);
+  console.log('🍪 All cookies:', request.cookies.getAll());
+  
   // Проверяем JWT токен
   const token = getTokenFromRequest(request);
 
   if (!token) {
     console.log('❌ Middleware: No token provided for', pathname);
+    console.log('📋 Available cookies:', request.cookies.getAll().map(c => c.name));
     return NextResponse.json(
       { error: 'Unauthorized', message: 'No token provided' },
       { status: 401 }

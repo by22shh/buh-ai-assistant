@@ -109,8 +109,21 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
     ...cookieOptions,
     NODE_ENV: process.env.NODE_ENV,
     isProduction,
-    tokenPreview: token.substring(0, 20) + '...'
+    tokenPreview: token.substring(0, 20) + '...',
+    url: 'Check if cookie is sent in subsequent requests'
   });
+
+  // Также устанавливаем через Set-Cookie заголовок явно
+  const cookieString = [
+    `token=${token}`,
+    'Path=/',
+    `Max-Age=${cookieOptions.maxAge}`,
+    'SameSite=Lax',
+    cookieOptions.httpOnly ? 'HttpOnly' : '',
+    cookieOptions.secure ? 'Secure' : '',
+  ].filter(Boolean).join('; ');
+  
+  console.log('🍪 Set-Cookie header:', cookieString);
 
   return response;
 }
