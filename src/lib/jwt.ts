@@ -93,32 +93,24 @@ export function getTokenFromRequest(request: NextRequest): string | null {
 export function setTokenCookie(response: NextResponse, token: string): NextResponse {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // ВРЕМЕННО: httpOnly = false для отладки
-  // TODO: вернуть httpOnly: true после исправления проблемы
-  // Используем строковый метод для большей совместимости
-  response.cookies.set('token', token, {
-    httpOnly: false, // ВРЕМЕННО для отладки
-    secure: false, // ВРЕМЕННО: false для localhost
-    sameSite: 'lax',
+  // В production: httpOnly=true, secure=true для безопасности
+  // В development: httpOnly=false, secure=false для отладки
+  const cookieOptions = {
+    httpOnly: true, // Возвращаем true для безопасности
+    secure: isProduction, // true на production (HTTPS), false на localhost
+    sameSite: 'lax' as const,
     maxAge: 60 * 60 * 24 * 7, // 7 дней
     path: '/',
-    domain: undefined, // Не устанавливаем domain для localhost
-  });
+  };
+
+  response.cookies.set('token', token, cookieOptions);
 
   console.log('🍪 Cookie set with options:', {
-    httpOnly: false, // ВРЕМЕННО для отладки
-    secure: false, // ВРЕМЕННО для localhost
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-    domain: 'undefined (auto)',
+    ...cookieOptions,
     NODE_ENV: process.env.NODE_ENV,
+    isProduction,
     tokenPreview: token.substring(0, 20) + '...'
   });
-
-  // Также добавим Set-Cookie заголовок вручную для отладки
-  const cookieValue = `token=${token}; Path=/; Max-Age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-  console.log('🍪 Set-Cookie header:', cookieValue);
 
   return response;
 }
