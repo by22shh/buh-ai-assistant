@@ -7,8 +7,12 @@ const PUBLIC_PATHS = [
   '/api/auth/send-code',
   '/api/auth/verify-code',
   '/api/users/login', // DEPRECATED but kept for compatibility
-  '/api/users/me', // ВРЕМЕННО: для отладки
 ];
+
+// ВРЕМЕННОЕ РЕШЕНИЕ: Отключаем middleware для всех API путей
+// Проблема: middleware на Netlify блокирует запросы до того, как они доходят до API routes
+// Каждый API route сам проверяет авторизацию через getCurrentUser()
+const SKIP_MIDDLEWARE = true;
 
 // Админские пути
 const ADMIN_PATHS = [
@@ -20,6 +24,12 @@ export async function middleware(request: NextRequest) {
 
   // Пропускаем не-API запросы
   if (!pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
+  // ВРЕМЕННО: Пропускаем все API запросы, каждый route проверяет авторизацию сам
+  if (SKIP_MIDDLEWARE) {
+    console.log('⚠️ Middleware skipped for:', pathname);
     return NextResponse.next();
   }
 
