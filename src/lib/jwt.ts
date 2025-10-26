@@ -57,12 +57,23 @@ export function getTokenFromRequest(request: NextRequest): string | null {
  * Создать response с установкой cookie для токена
  */
 export function setTokenCookie(response: NextResponse, token: string): NextResponse {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   response.cookies.set('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 дней
     path: '/',
+  });
+
+  console.log('🍪 Cookie set with options:', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+    tokenPreview: token.substring(0, 20) + '...'
   });
 
   return response;

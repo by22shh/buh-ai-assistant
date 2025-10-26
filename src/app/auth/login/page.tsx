@@ -86,16 +86,23 @@ export default function LoginPage() {
         throw new Error(data.error || 'Неверный код');
       }
 
+      // Показываем успешное сообщение
       toast.success(`Добро пожаловать${data.user?.firstName ? `, ${data.user.firstName}` : ''}!`);
 
-      // Redirect based on role
+      // Определяем URL для редиректа
+      const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
+
+      // Отладка: проверяем cookies
+      console.log('🍪 Checking cookies after login:', document.cookie);
+      console.log('✅ User data:', data.user);
+      console.log('🔄 Redirecting to:', redirectUrl);
+
+      // ВАЖНО: Даем время на сохранение cookie
+      // Затем делаем ПОЛНУЮ перезагрузку страницы
       setTimeout(() => {
-        if (data.user?.role === "admin") {
-          router.push("/admin/templates");
-        } else {
-          router.push("/templates");
-        }
-      }, 200);
+        console.log('🍪 Cookies before redirect:', document.cookie);
+        window.location.assign(redirectUrl);
+      }, 500);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
     } finally {
