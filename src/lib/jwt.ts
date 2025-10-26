@@ -66,26 +66,30 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
 
   // ВРЕМЕННО: httpOnly = false для отладки
   // TODO: вернуть httpOnly: true после исправления проблемы
-  // Используем объектный формат для большей надёжности
-  response.cookies.set({
-    name: 'token',
-    value: token,
+  // Используем строковый метод для большей совместимости
+  response.cookies.set('token', token, {
     httpOnly: false, // ВРЕМЕННО для отладки
-    secure: isProduction,
+    secure: false, // ВРЕМЕННО: false для localhost
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 дней
     path: '/',
+    domain: undefined, // Не устанавливаем domain для localhost
   });
 
   console.log('🍪 Cookie set with options:', {
     httpOnly: false, // ВРЕМЕННО для отладки
-    secure: isProduction,
+    secure: false, // ВРЕМЕННО для localhost
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
+    domain: 'undefined (auto)',
     NODE_ENV: process.env.NODE_ENV,
     tokenPreview: token.substring(0, 20) + '...'
   });
+
+  // Также добавим Set-Cookie заголовок вручную для отладки
+  const cookieValue = `token=${token}; Path=/; Max-Age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  console.log('🍪 Set-Cookie header:', cookieValue);
 
   return response;
 }

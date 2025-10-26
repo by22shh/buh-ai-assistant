@@ -100,9 +100,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'Неверный код');
       }
 
-      // Обновляем кеш React Query с данными пользователя
-      queryClient.setQueryData(['user'], data.user);
-
       // Показываем успешное сообщение
       toast.success(`Добро пожаловать${data.user?.firstName ? `, ${data.user.firstName}` : ''}!`);
 
@@ -110,16 +107,32 @@ export default function LoginPage() {
       const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
 
       // Отладка
-      console.log('🍪 Checking cookies after login:', document.cookie);
+      console.log('🍪 Cookies IMMEDIATELY after login:', document.cookie);
       console.log('✅ User data:', data.user);
-      console.log('✅ User cache updated');
-      console.log('🔄 Redirecting to:', redirectUrl);
+      console.log('🔄 Will redirect to:', redirectUrl);
 
-      // Сбрасываем loading и делаем редирект
-      setLoading(false);
-      
-      // Используем router.push вместо window.location для более плавного перехода
-      router.push(redirectUrl);
+      // ВАЖНО: Даём время на сохранение cookie перед редиректом
+      // Сначала обновляем кеш, затем делаем редирект
+      setTimeout(() => {
+        console.log('🍪 Cookies BEFORE redirect:', document.cookie);
+        
+        // Проверяем наличие токена
+        const hasToken = document.cookie.includes('token=');
+        console.log('🔍 Token cookie present?', hasToken);
+        
+        if (!hasToken) {
+          console.error('❌ WARNING: Token cookie NOT found! Will try redirect anyway...');
+        }
+        
+        // Обновляем кеш React Query
+        queryClient.setQueryData(['user'], data.user);
+        console.log('✅ User cache updated');
+        
+        // Делаем редирект
+        console.log('🔄 Redirecting NOW to:', redirectUrl);
+        router.push(redirectUrl);
+        setLoading(false);
+      }, 500);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
       setLoading(false); // Только при ошибке

@@ -6,6 +6,9 @@ export async function apiClient<T = any>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  console.log(`🌐 API Request: ${options?.method || 'GET'} ${url}`);
+  console.log('🍪 Current cookies:', document.cookie);
+  
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -15,8 +18,11 @@ export async function apiClient<T = any>(
     credentials: 'include', // Важно: отправляем cookies
   });
 
+  console.log(`📥 API Response: ${response.status} ${response.statusText}`);
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('❌ API Error:', error);
     throw new Error(error.error || error.message || 'API request failed');
   }
 
