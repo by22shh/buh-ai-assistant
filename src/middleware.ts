@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   '/api/auth/send-code',
   '/api/auth/verify-code',
   '/api/users/login', // DEPRECATED but kept for compatibility
+  '/api/users/me', // ВРЕМЕННО: для отладки
 ];
 
 // Админские пути
