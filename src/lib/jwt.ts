@@ -14,13 +14,21 @@ export interface JWTPayload {
  * Создать JWT токен
  */
 export function createToken(payload: JWTPayload): string {
-  return jwt.sign(
+  console.log('🔨 Creating JWT token with payload:', payload);
+  console.log('🔑 Using JWT_SECRET:', JWT_SECRET.substring(0, 20) + '...');
+  console.log('⏰ Token expires in:', JWT_EXPIRES_IN);
+  
+  const token = jwt.sign(
     payload,
     JWT_SECRET,
     {
       expiresIn: JWT_EXPIRES_IN,
     } as jwt.SignOptions
   );
+  
+  console.log('✅ Token created, length:', token.length);
+  
+  return token;
 }
 
 /**
@@ -28,10 +36,25 @@ export function createToken(payload: JWTPayload): string {
  */
 export function verifyToken(token: string): JWTPayload | null {
   try {
+    console.log('🔍 Verifying JWT token...');
+    console.log('🔑 JWT_SECRET:', JWT_SECRET.substring(0, 20) + '...');
+    console.log('📝 Token preview:', token.substring(0, 50) + '...');
+    
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    
+    console.log('✅ JWT verification successful:', {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role
+    });
+    
     return decoded;
   } catch (error) {
-    console.error('JWT verification failed:', error);
+    console.error('❌ JWT verification failed:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+    }
     return null;
   }
 }
