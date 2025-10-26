@@ -92,17 +92,29 @@ export default function LoginPage() {
       // Определяем URL для редиректа
       const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
 
-      // Отладка: проверяем cookies
-      console.log('🍪 Checking cookies after login:', document.cookie);
+      // Отладка
+      console.log('🍪 Checking cookies IMMEDIATELY after login:', document.cookie);
       console.log('✅ User data:', data.user);
-      console.log('🔄 Redirecting to:', redirectUrl);
+      console.log('🔄 Will redirect to:', redirectUrl);
 
-      // ВАЖНО: Даем время на сохранение cookie
-      // Затем делаем ПОЛНУЮ перезагрузку страницы
+      // ВАЖНО: Cookie устанавливается сервером, даем время
+      // Делаем ПОЛНУЮ перезагрузку через window.location
       setTimeout(() => {
-        console.log('🍪 Cookies before redirect:', document.cookie);
-        window.location.assign(redirectUrl);
-      }, 500);
+        const cookiesNow = document.cookie;
+        console.log('🍪 Cookies BEFORE redirect:', cookiesNow);
+
+        // Проверяем наличие токена
+        const hasToken = cookiesNow.includes('token=');
+        console.log('🔍 Token cookie present?', hasToken);
+
+        if (!hasToken) {
+          console.error('❌ WARNING: Token cookie NOT found! Cookie may not be set properly.');
+        }
+
+        // Полная перезагрузка страницы
+        console.log('➡️ Redirecting NOW to:', redirectUrl);
+        window.location.href = redirectUrl;
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
     } finally {

@@ -59,8 +59,10 @@ export function getTokenFromRequest(request: NextRequest): string | null {
 export function setTokenCookie(response: NextResponse, token: string): NextResponse {
   const isProduction = process.env.NODE_ENV === 'production';
 
+  // ВРЕМЕННО: httpOnly = false для отладки
+  // TODO: вернуть httpOnly: true после исправления проблемы
   response.cookies.set('token', token, {
-    httpOnly: true,
+    httpOnly: false, // ВРЕМЕННО для отладки
     secure: isProduction,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 дней
@@ -68,7 +70,7 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
   });
 
   console.log('🍪 Cookie set with options:', {
-    httpOnly: true,
+    httpOnly: false, // ВРЕМЕННО
     secure: isProduction,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7,
