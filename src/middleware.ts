@@ -9,6 +9,11 @@ const PUBLIC_PATHS = [
   '/api/users/login', // DEPRECATED but kept for compatibility
 ];
 
+// Пути, которые проверяют авторизацию сами (не блокируем в middleware)
+const SELF_AUTH_PATHS = [
+  '/api/users/me', // Этот endpoint сам проверяет и возвращает 401
+];
+
 // Админские пути
 const ADMIN_PATHS = [
   '/api/admin/',
@@ -49,10 +54,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Пропускаем пути с собственной проверкой авторизации
+  if (SELF_AUTH_PATHS.some(path => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
   // Проверяем JWT токен
   const token = getTokenFromRequest(request);
 
   if (!token) {
+    console.log('❌ Middleware: No token provided for', pathname);
     return NextResponse.json(
       { error: 'Unauthorized', message: 'No token provided' },
       { status: 401 }
@@ -62,11 +73,14 @@ export async function middleware(request: NextRequest) {
   const payload = verifyToken(token);
 
   if (!payload) {
+    console.log('❌ Middleware: Invalid or expired token for', pathname);
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Invalid or expired token' },
       { status: 401 }
     );
   }
+
+  console.log('✅ Middleware: Token valid for', pathname, '- User:', payload.email);
 
   // Проверяем доступ к админским путям
   if (ADMIN_PATHS.some(path => pathname.startsWith(path))) {

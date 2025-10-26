@@ -42,14 +42,19 @@ export function verifyToken(token: string): JWTPayload | null {
 export function getTokenFromRequest(request: NextRequest): string | null {
   // Сначала пробуем cookie
   const cookieToken = request.cookies.get('token')?.value;
-  if (cookieToken) return cookieToken;
+  if (cookieToken) {
+    console.log('🍪 Token found in cookie');
+    return cookieToken;
+  }
 
   // Затем пробуем Authorization header
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
+    console.log('🔑 Token found in Authorization header');
     return authHeader.substring(7);
   }
 
+  console.log('❌ No token found in request (checked cookie and header)');
   return null;
 }
 
@@ -61,7 +66,10 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
 
   // ВРЕМЕННО: httpOnly = false для отладки
   // TODO: вернуть httpOnly: true после исправления проблемы
-  response.cookies.set('token', token, {
+  // Используем объектный формат для большей надёжности
+  response.cookies.set({
+    name: 'token',
+    value: token,
     httpOnly: false, // ВРЕМЕННО для отладки
     secure: isProduction,
     sameSite: 'lax',
@@ -70,11 +78,12 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
   });
 
   console.log('🍪 Cookie set with options:', {
-    httpOnly: false, // ВРЕМЕННО
+    httpOnly: false, // ВРЕМЕННО для отладки
     secure: isProduction,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
+    NODE_ENV: process.env.NODE_ENV,
     tokenPreview: token.substring(0, 20) + '...'
   });
 

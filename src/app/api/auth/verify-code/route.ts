@@ -61,6 +61,12 @@ export async function POST(request: NextRequest) {
       role: user.role,
     });
 
+    console.log('🔑 JWT token created for user:', {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     // Create response with token in cookie
     const nextResponse = NextResponse.json({
       success: true,
@@ -76,7 +82,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return setTokenCookie(nextResponse, jwtToken);
+    const responseWithCookie = setTokenCookie(nextResponse, jwtToken);
+    
+    console.log('✅ Response with cookie prepared, sending to client');
+    
+    return responseWithCookie;
 
   } catch (error) {
     console.error('Verify code error:', error);

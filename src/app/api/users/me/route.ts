@@ -8,15 +8,20 @@ import { getCurrentUser } from '@/lib/auth-utils';
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('📥 GET /api/users/me - Checking authentication');
+    console.log('🍪 Cookies received:', request.cookies.getAll());
+    
     const user = await getCurrentUser(request);
 
     if (!user) {
+      console.log('❌ No user found - unauthorized');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
+    console.log('✅ User authenticated:', { id: user.id, email: user.email, role: user.role });
     return NextResponse.json(user);
   } catch (error) {
     console.error('GET /api/users/me error:', error);

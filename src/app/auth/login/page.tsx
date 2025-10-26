@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useUser } from "@/hooks/useUser";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Если пользователь уже авторизован, перенаправляем его
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      console.log('👤 User already logged in, redirecting...');
+      const redirectUrl = user.role === "admin" ? "/admin/templates" : "/templates";
+      router.push(redirectUrl);
+    }
+  }, [user, isUserLoading, router]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +88,8 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
+        body: JSON.stringify({ email, code }),
+        credentials: 'include', // ВАЖНО: включаем cookies
       });
 
       const data = await response.json();
@@ -92,13 +104,14 @@ export default function LoginPage() {
       // Определяем URL для редиректа
       const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
 
-      // Отладка
+      // Отладка: проверяем cookies (httpOnly: false временно для отладки)
       console.log('🍪 Checking cookies IMMEDIATELY after login:', document.cookie);
       console.log('✅ User data:', data.user);
       console.log('🔄 Will redirect to:', redirectUrl);
 
       // ВАЖНО: Cookie устанавливается сервером, даем время
       // Делаем ПОЛНУЮ перезагрузку через window.location
+      // Увеличена задержка до 1.5 секунд для гарантии сохранения cookie
       setTimeout(() => {
         const cookiesNow = document.cookie;
         console.log('🍪 Cookies BEFORE redirect:', cookiesNow);
@@ -114,12 +127,12 @@ export default function LoginPage() {
         // Полная перезагрузка страницы
         console.log('➡️ Redirecting NOW to:', redirectUrl);
         window.location.href = redirectUrl;
-      }, 1000);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
-    } finally {
-      setLoading(false);
+      setLoading(false); // Только при ошибке
     }
+    // Не сбрасываем loading здесь, чтобы кнопка оставалась disabled до редиректа
   };
 
   return (
