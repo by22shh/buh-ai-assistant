@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Пользователь системы
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  emailVerified Boolean        @default(false)
+  role          String         @default("user") // "user" | "admin"
+  firstName     String?
+  lastName      String?
+  phone         String?
+  position      String?
+  company       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  organizations Organization[]
+  documents     Document[]
+  demoStatus    DemoStatus?
+
+  @@index([email])
+}
+
+// Одноразовые коды для входа по email
+model LoginToken {
+  id         String   @id @default(uuid())
+  email      String
+  code       String   // 6-digit code
+  token      String   @unique
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([code])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Организация пользователя
+model Organization {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name_full       String
+  name_short      String?
+  inn             String
+  kpp             String?
+  ogrn            String?
+  legal_address   String?
+  postal_address  String?
+  phone           String?
+  email           String?
+
+  // Банковские реквизиты
+  bank_name           String?
+  bank_bik            String?
+  bank_corr_account   String?
+  settlement_account  String?
+
+  // Руководство
+  ceo_name       String?
+  ceo_position   String?
+  accountant_name String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  documents       Document[]
+
+  @@index([userId])
+  @@index([inn])
+}
+
+// Документ
+model Document {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  title             String?
+  templateCode      String
+  templateVersion   String
+  bodyText          String?   @db.Text
+  requisites        Json?     // Гибкое хранение реквизитов
+  hasBodyChat       Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([templateCode])
+  @@index([createdAt])
+}
+
+// Статус демо-доступа пользователя
+model DemoStatus {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  documentsUsed   Int       @default(0)
+  documentsLimit  Int       @default(5)
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Конфигурация реквизитов для шаблона (только для админа)
+model TemplateConfig {
+  id              String    @id @default(uuid())
+  templateCode    String    @unique
+  requisitesConfig Json?    // Настройки полей реквизитов из админки
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([templateCode])
+}
