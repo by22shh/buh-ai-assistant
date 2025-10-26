@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import { useUser } from "@/hooks/useUser";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, isLoading: isUserLoading } = useUser();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -98,36 +100,26 @@ export default function LoginPage() {
         throw new Error(data.error || 'Неверный код');
       }
 
+      // Обновляем кеш React Query с данными пользователя
+      queryClient.setQueryData(['user'], data.user);
+
       // Показываем успешное сообщение
       toast.success(`Добро пожаловать${data.user?.firstName ? `, ${data.user.firstName}` : ''}!`);
 
       // Определяем URL для редиректа
       const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
 
-      // Отладка: проверяем cookies (httpOnly: false временно для отладки)
-      console.log('🍪 Checking cookies IMMEDIATELY after login:', document.cookie);
+      // Отладка
+      console.log('🍪 Checking cookies after login:', document.cookie);
       console.log('✅ User data:', data.user);
-      console.log('🔄 Will redirect to:', redirectUrl);
+      console.log('✅ User cache updated');
+      console.log('🔄 Redirecting to:', redirectUrl);
 
-      // ВАЖНО: Cookie устанавливается сервером, даем время
-      // Делаем ПОЛНУЮ перезагрузку через window.location
-      // Увеличена задержка до 1.5 секунд для гарантии сохранения cookie
-      setTimeout(() => {
-        const cookiesNow = document.cookie;
-        console.log('🍪 Cookies BEFORE redirect:', cookiesNow);
-
-        // Проверяем наличие токена
-        const hasToken = cookiesNow.includes('token=');
-        console.log('🔍 Token cookie present?', hasToken);
-
-        if (!hasToken) {
-          console.error('❌ WARNING: Token cookie NOT found! Cookie may not be set properly.');
-        }
-
-        // Полная перезагрузка страницы
-        console.log('➡️ Redirecting NOW to:', redirectUrl);
-        window.location.href = redirectUrl;
-      }, 1500);
+      // Сбрасываем loading и делаем редирект
+      setLoading(false);
+      
+      // Используем router.push вместо window.location для более плавного перехода
+      router.push(redirectUrl);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
       setLoading(false); // Только при ошибке

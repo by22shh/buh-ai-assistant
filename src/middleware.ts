@@ -9,11 +9,6 @@ const PUBLIC_PATHS = [
   '/api/users/login', // DEPRECATED but kept for compatibility
 ];
 
-// Пути, которые проверяют авторизацию сами (не блокируем в middleware)
-const SELF_AUTH_PATHS = [
-  '/api/users/me', // Этот endpoint сам проверяет и возвращает 401
-];
-
 // Админские пути
 const ADMIN_PATHS = [
   '/api/admin/',
@@ -51,11 +46,6 @@ export async function middleware(request: NextRequest) {
 
   // Пропускаем публичные пути
   if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  // Пропускаем пути с собственной проверкой авторизации
-  if (SELF_AUTH_PATHS.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
