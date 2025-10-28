@@ -14,12 +14,12 @@ const redis = hasUpstash
 
 /**
  * Rate limiter для API запросов
- * 20 запросов в 10 секунд на IP
+ * Production: 100 запросов в минуту на IP
  */
 export const apiLimiter = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(20, '10 s'),
+      limiter: Ratelimit.slidingWindow(100, '1 m'),
       analytics: true,
       prefix: 'ratelimit:api',
     })

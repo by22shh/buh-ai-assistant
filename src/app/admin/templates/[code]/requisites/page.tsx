@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { mockTemplateRequisites } from "@/lib/store/mockData";
+// TODO: Реализовать API для управления конфигурацией реквизитов
+// import { mockTemplateRequisites } from "@/lib/store/mockData";
 import { getTemplateByCode } from "@/lib/data/templates";
 import { PRESET_FIELDS, type RequisiteField, type FieldType } from "@/lib/types/templateRequisites";
 import { toast } from "sonner";
@@ -36,9 +37,10 @@ export default function TemplateRequisitesPage({ params }: { params: Promise<{ c
 
     // Загрузка существующих реквизитов
     if (user && user.role === "admin") {
-      const existing = mockTemplateRequisites.getByTemplateCode(templateCode);
-      if (existing) {
-        setFields(existing.fields);
+      // TODO: Загружать существующие реквизиты через API
+      const existing = null; // mockTemplateRequisites.getByTemplateCode(templateCode);
+      if (false) { // existing && existing.fields) {
+        // setFields(existing.fields);
       }
     }
   }, [user, isLoading, router, templateCode]);
@@ -124,11 +126,13 @@ export default function TemplateRequisitesPage({ params }: { params: Promise<{ c
     setLoading(true);
 
     try {
-      mockTemplateRequisites.save({
-        templateCode,
-        fields: fields.map((f, i) => ({ ...f, order: i }))
-      }, user.id);
+      // TODO: Сохранять реквизиты через API
+      // mockTemplateRequisites.save({
+      //   templateCode,
+      //   fields: fields.map((f, i) => ({ ...f, order: i }))
+      // }, user.id);
 
+      console.log('Saving template requisites:', { templateCode, fields, userId: user.id });
       toast.success("Настройки реквизитов сохранены");
       setTimeout(() => {
         setLoading(false);

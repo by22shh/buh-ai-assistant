@@ -19,8 +19,26 @@ export async function getCurrentUser(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    include: {
-      demoStatus: true,
+    select: {
+      id: true,
+      email: true,
+      emailVerified: true,
+      role: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      position: true,
+      company: true,
+      createdAt: true,
+      updatedAt: true,
+      demoStatus: {
+        select: {
+          documentsUsed: true,
+          documentsLimit: true,
+          isActive: true,
+          expiresAt: true,
+        }
+      },
     },
   });
 
@@ -39,7 +57,10 @@ export async function upsertUser(email: string, data?: {
   emailVerified?: boolean;
 }) {
   // Проверяем, является ли email админским
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com';
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  if (!adminEmail) {
+    throw new Error('NEXT_PUBLIC_ADMIN_EMAIL environment variable is required');
+  }
   const isAdmin = email.toLowerCase() === adminEmail.toLowerCase();
 
   const user = await prisma.user.upsert({

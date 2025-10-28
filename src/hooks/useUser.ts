@@ -2,21 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
 
-interface User {
-  id: string;
-  phone: string;
-  role: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  position?: string;
-  company?: string;
-  demoStatus?: {
-    documentsUsed: number;
-    documentsLimit: number;
-    isActive: boolean;
-  };
-}
+import type { User } from '@/lib/types/user';
 
 export function useUser() {
   const queryClient = useQueryClient();
@@ -39,7 +25,7 @@ export function useUser() {
     mutationFn: (data: {
       firstName?: string;
       lastName?: string;
-      email?: string;
+      phone?: string;
       position?: string;
       company?: string;
     }) => api.put<User>('/api/users/me', data),
@@ -75,33 +61,13 @@ export function useUser() {
     },
   });
 
-  // Mutation для логина
-  const loginMutation = useMutation({
-    mutationFn: (data: {
-      phone: string;
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      position?: string;
-      company?: string;
-    }) => api.post<User>('/api/users/login', data),
-
-    onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
-    },
-
-    onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Failed to login';
-      toast.error(message);
-    },
-  });
+  // Production: login через auth flow, не нужен отдельный mutation
 
   return {
     user,
     isLoading,
     error,
     updateProfile: updateMutation.mutateAsync,
-    login: loginMutation.mutateAsync,
     refresh: () => queryClient.invalidateQueries({ queryKey: ['user'] }),
   };
 }

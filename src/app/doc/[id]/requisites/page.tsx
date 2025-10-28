@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@/hooks/useUser";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useDocuments } from "@/hooks/useDocuments";
-import { mockTemplateRequisites } from "@/lib/store/mockData";
+// TODO: Реализовать API для получения конфигурации реквизитов шаблонов
+// import { mockTemplateRequisites } from "@/lib/store/mockData";
 import { getTemplateByCode } from "@/lib/data/templates";
 import type { RequisiteField } from "@/lib/types/templateRequisites";
 import { toast } from "sonner";
@@ -43,12 +44,13 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
       return;
     }
 
-    // Загружаем настроенные реквизиты для шаблона
+    // TODO: Загружаем настроенные реквизиты для шаблона из API
     if (templateCode) {
-      const templateRequisites = mockTemplateRequisites.getByTemplateCode(templateCode);
-      if (templateRequisites && templateRequisites.fields.length > 0) {
+      // Production: используем пустой массив до реализации API
+      const templateRequisites = null; // mockTemplateRequisites.getByTemplateCode(templateCode);
+      if (false) { // templateRequisites && templateRequisites.fields && templateRequisites.fields.length > 0) {
         // Сортируем по order
-        const sortedFields = [...templateRequisites.fields].sort((a, b) => a.order - b.order);
+        const sortedFields = []; // [...templateRequisites.fields].sort((a, b) => a.order - b.order);
         setConfiguredFields(sortedFields);
       }
     }

@@ -19,8 +19,24 @@ export async function GET(request: NextRequest) {
 
     const documents = await prisma.document.findMany({
       where: { userId: user.id },
-      include: {
-        organization: true,
+      select: {
+        id: true,
+        title: true,
+        templateCode: true,
+        templateVersion: true,
+        bodyText: true,
+        requisites: true,
+        hasBodyChat: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: {
+          select: {
+            id: true,
+            name_full: true,
+            name_short: true,
+            inn: true,
+          }
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -74,8 +90,24 @@ export async function POST(request: NextRequest) {
         requisites: data.requisites,
         hasBodyChat: data.hasBodyChat || false,
       },
-      include: {
-        organization: true,
+      select: {
+        id: true,
+        title: true,
+        templateCode: true,
+        templateVersion: true,
+        bodyText: true,
+        requisites: true,
+        hasBodyChat: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: {
+          select: {
+            id: true,
+            name_full: true,
+            name_short: true,
+            inn: true,
+          }
+        },
       },
     });
 

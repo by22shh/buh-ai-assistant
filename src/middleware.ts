@@ -6,13 +6,10 @@ import { checkApiRateLimit, getIP } from './lib/rate-limit';
 const PUBLIC_PATHS = [
   '/api/auth/send-code',
   '/api/auth/verify-code',
-  '/api/users/login', // DEPRECATED but kept for compatibility
 ];
 
-// ВРЕМЕННОЕ РЕШЕНИЕ: Отключаем middleware для всех API путей
-// Проблема: middleware на Netlify блокирует запросы до того, как они доходят до API routes
-// Каждый API route сам проверяет авторизацию через getCurrentUser()
-const SKIP_MIDDLEWARE = true;
+// Production: Включаем middleware для защиты API роутов
+const SKIP_MIDDLEWARE = false;
 
 // Админские пути
 const ADMIN_PATHS = [

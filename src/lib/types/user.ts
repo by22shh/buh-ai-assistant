@@ -2,25 +2,25 @@ export type UserRole = "admin" | "user";
 
 export interface User {
   id: string;
-  phone: string;
+  email: string;
+  emailVerified: boolean;
   role: UserRole;
-  access_from?: string;
-  access_until?: string;
-  created_at: string;
-  updated_at: string;
-
-  // Профиль
   firstName?: string;
   lastName?: string;
-  email?: string;
+  phone?: string;
   position?: string;
   company?: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  
+  // Relations
+  demoStatus?: DemoStatus;
 }
 
 export interface AccessInfo {
   userId: string;
-  email?: string;
-  phone: string;
+  email: string;
+  phone?: string;
   current_access: {
     status: "active" | "expired" | "none";
     start_date?: string;

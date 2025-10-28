@@ -1,17 +1,31 @@
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "role" TEXT NOT NULL DEFAULT 'user',
     "firstName" TEXT,
     "lastName" TEXT,
-    "email" TEXT,
+    "phone" TEXT,
     "position" TEXT,
     "company" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LoginToken" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LoginToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -83,7 +97,25 @@ CREATE TABLE "TemplateConfig" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_phone_key" ON "User"("phone");
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "User_email_idx" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LoginToken_token_key" ON "LoginToken"("token");
+
+-- CreateIndex
+CREATE INDEX "LoginToken_email_idx" ON "LoginToken"("email");
+
+-- CreateIndex
+CREATE INDEX "LoginToken_code_idx" ON "LoginToken"("code");
+
+-- CreateIndex
+CREATE INDEX "LoginToken_token_idx" ON "LoginToken"("token");
+
+-- CreateIndex
+CREATE INDEX "LoginToken_expiresAt_idx" ON "LoginToken"("expiresAt");
 
 -- CreateIndex
 CREATE INDEX "Organization_userId_idx" ON "Organization"("userId");

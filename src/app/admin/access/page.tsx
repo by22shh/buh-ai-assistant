@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { mockAccess } from "@/lib/store/mockData";
+// TODO: Реализовать API для управления доступом пользователей
+// import { mockAccess } from "@/lib/store/mockData";
 
 export default function AdminAccessPage() {
   const router = useRouter();
@@ -28,7 +29,8 @@ export default function AdminAccessPage() {
 
   if (!user || user.role !== "admin") return null;
 
-  const accessRecords = mockAccess.getAll();
+  // TODO: Загружать данные доступа через API
+  const accessRecords: any[] = [];
 
   return (
     <div className="min-h-screen">
