@@ -110,9 +110,8 @@ export default function LoginPage() {
         // Обновляем кеш React Query
         queryClient.setQueryData(['user'], data.user);
         
-        // Делаем редирект
-        router.push(redirectUrl);
-        setLoading(false);
+        // Принудительный редирект с полным обновлением страницы
+        window.location.href = redirectUrl;
       }, 500);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
