@@ -58,10 +58,7 @@ export async function upsertUser(email: string, data?: {
 }) {
   // Проверяем, является ли email админским
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-  if (!adminEmail) {
-    throw new Error('NEXT_PUBLIC_ADMIN_EMAIL environment variable is required');
-  }
-  const isAdmin = email.toLowerCase() === adminEmail.toLowerCase();
+  const isAdmin = adminEmail ? email.toLowerCase() === adminEmail.toLowerCase() : false;
 
   const user = await prisma.user.upsert({
     where: { email: email.toLowerCase() },
