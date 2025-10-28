@@ -72,12 +72,15 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
 
   const cookieOptions = {
     httpOnly: true,
-    secure: isProduction, // true на production (HTTPS), false на localhost
-    sameSite: 'lax' as const,
+    secure: isProduction, // HTTPS только на production
+    sameSite: 'strict' as const, // Более строгий для безопасности
     maxAge: 60 * 60 * 24 * 7, // 7 дней
     path: '/',
+    // Для отладки на production добавляем domain
+    ...(isProduction ? {} : { domain: 'localhost' })
   };
 
+  console.log('🍪 Setting cookie with options:', cookieOptions);
   response.cookies.set('token', token, cookieOptions);
 
   return response;
