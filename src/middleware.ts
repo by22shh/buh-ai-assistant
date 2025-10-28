@@ -8,8 +8,8 @@ const PUBLIC_PATHS = [
   '/api/auth/verify-code',
 ];
 
-// Production: Включаем middleware для защиты API роутов
-const SKIP_MIDDLEWARE = false;
+// DEBUG: Временно отключаем middleware для отладки
+const SKIP_MIDDLEWARE = true;
 
 // Админские пути
 const ADMIN_PATHS = [
