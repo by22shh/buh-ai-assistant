@@ -30,10 +30,6 @@ export async function getCurrentUser(request: NextRequest) {
       phone: true,
       position: true,
       company: true,
-      accessFrom: true,
-      accessUntil: true,
-      accessComment: true,
-      accessUpdatedBy: true,
       createdAt: true,
       updatedAt: true,
       demoStatus: {
