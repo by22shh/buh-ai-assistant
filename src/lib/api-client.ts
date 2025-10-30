@@ -1,10 +1,64 @@
+// Флаг для предотвращения бесконечных циклов при refresh
+let isRefreshing = false;
+let refreshPromise: Promise<Response> | null = null;
+
+/**
+ * Попытка обновить access token через refresh token
+ */
+async function attemptTokenRefresh(): Promise<boolean> {
+  // Если уже идет процесс обновления, ждем его завершения
+  if (isRefreshing && refreshPromise) {
+    try {
+      const response = await refreshPromise;
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  // Начинаем новый процесс обновления
+  isRefreshing = true;
+  refreshPromise = fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  try {
+    const response = await refreshPromise;
+    const success = response.ok;
+    
+    if (!success) {
+      // Refresh не удался, возможно токен истек или отозван
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+    
+    return success;
+  } catch (error) {
+    isRefreshing = false;
+    refreshPromise = null;
+    return false;
+  } finally {
+    // Сбрасываем флаг после небольшой задержки, чтобы избежать race conditions
+    setTimeout(() => {
+      isRefreshing = false;
+      refreshPromise = null;
+    }, 1000);
+  }
+}
+
 /**
  * API Client с автоматическим добавлением JWT токена из cookie
  * Cookie автоматически отправляется браузером, не нужно добавлять вручную
+ * Автоматически пытается обновить токен при 401 ошибке
  */
 export async function apiClient<T = any>(
   url: string,
-  options?: RequestInit
+  options?: RequestInit,
+  isRetry = false // Флаг для предотвращения бесконечных ретраев
 ): Promise<T> {
   const response = await fetch(url, {
     ...options,
@@ -16,6 +70,35 @@ export async function apiClient<T = any>(
   });
 
   if (!response.ok) {
+    // При 401 пытаемся обновить токен и повторить запрос
+    if (typeof window !== 'undefined' && response.status === 401 && !isRetry) {
+      const refreshSuccess = await attemptTokenRefresh();
+      
+      if (refreshSuccess) {
+        // Токен обновлен, повторяем оригинальный запрос
+        return apiClient<T>(url, options, true);
+      }
+      // Refresh не удался, продолжаем с редиректом на логин
+    }
+
+    // Редирект на логин только если:
+    // 1. Это 401 и refresh не помог (или уже была попытка)
+    // 2. Это 403 (Forbidden - недостаточно прав)
+    // НО: Не редиректим если мы уже на странице логина или если это первый запрос на /api/users/me
+    if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+      const currentPath = window.location.pathname;
+      
+      // Не редиректим если мы уже на странице авторизации
+      if (currentPath !== '/auth/login' && !currentPath.startsWith('/auth/')) {
+        const target = '/auth/login' + (currentPath && currentPath !== '/auth/login' ? `?next=${encodeURIComponent(currentPath + window.location.search)}` : '');
+        // Используем hard redirect, чтобы сбросить возможное клиентское состояние
+        window.location.href = target;
+        // Возвращаем Promise, который никогда не резолвится, чтобы остановить дальнейшую обработку
+        // и избежать гонок до редиректа
+        return new Promise<T>(() => {});
+      }
+    }
+
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || error.message || 'API request failed');
   }

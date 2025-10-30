@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { upsertUser } from '@/lib/auth-utils';
-import { createToken, setTokenCookie } from '@/lib/jwt';
+import { upsertUser, createRefreshTokenRecord } from '@/lib/auth-utils';
+import { createToken, createRefreshToken, setTokenCookie, setRefreshTokenCookie } from '@/lib/jwt';
+import { checkAuthRateLimit, getIP } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/verify-code
@@ -9,6 +10,16 @@ import { createToken, setTokenCookie } from '@/lib/jwt';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP to reduce guessing/bruteforce of codes
+    const ip = getIP(request);
+    const rl = await checkAuthRateLimit(ip);
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: 'Слишком много попыток. Попробуйте позже.' },
+        { status: 429 }
+      );
+    }
+
     const { email, code } = await request.json();
 
     if (!email || !code) {
@@ -34,7 +45,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!loginToken) {
-      console.log('❌ Invalid or expired code:', { email, code });
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('❌ Invalid or expired code');
+      }
       return NextResponse.json(
         { success: false, error: 'Неверный или истекший код' },
         { status: 400 }
@@ -47,27 +60,37 @@ export async function POST(request: NextRequest) {
       data: { used: true }
     });
 
-    console.log('✅ Code verified:', { email, code });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Code verified');
+    }
 
     // Create or update user
     const user = await upsertUser(email.toLowerCase(), {
       emailVerified: true
     });
 
-    // Create JWT token
-    const jwtToken = createToken({
+    // Create access JWT token (short-lived)
+    const accessToken = createToken({
       userId: user.id,
       email: user.email,
       role: user.role,
     });
 
-    console.log('🔑 JWT token created for user:', {
+    // Create refresh token (long-lived)
+    const refreshTokenValue = createRefreshToken({
       userId: user.id,
       email: user.email,
       role: user.role,
     });
 
-    // Create response with token in cookie
+    // Store refresh token in database
+    await createRefreshTokenRecord(user.id, refreshTokenValue);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔑 JWT tokens created for user');
+    }
+
+    // Create response with tokens in cookies
     const nextResponse = NextResponse.json({
       success: true,
       email: user.email,
@@ -82,14 +105,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const responseWithCookie = setTokenCookie(nextResponse, jwtToken);
+    const responseWithAccessCookie = setTokenCookie(nextResponse, accessToken);
+    const responseWithBothCookies = setRefreshTokenCookie(responseWithAccessCookie, refreshTokenValue);
     
-    console.log('✅ Response with cookie prepared, sending to client');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Response with cookies prepared');
+      console.log('✅ Access token cookie set:', accessToken.substring(0, 20) + '...');
+      console.log('✅ Refresh token cookie set:', refreshTokenValue.substring(0, 20) + '...');
+    }
     
-    return responseWithCookie;
+    return responseWithBothCookies;
 
   } catch (error) {
-    console.error('Verify code error:', error);
+    console.error('Verify code error');
     return NextResponse.json(
       { success: false, error: 'Внутренняя ошибка сервера' },
       { status: 500 }

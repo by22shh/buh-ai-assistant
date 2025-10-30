@@ -105,14 +105,16 @@ export default function LoginPage() {
       // Определяем URL для редиректа
       const redirectUrl = data.user?.role === "admin" ? "/admin/templates" : "/templates";
 
-      // ВАЖНО: Даём время на сохранение cookie перед редиректом
+      // Обновляем кеш React Query перед редиректом
+      queryClient.setQueryData(['user'], data.user);
+      
+      console.log('✅ Login successful, redirecting to:', redirectUrl);
+      
+      // Используем router.push вместо window.location.href для более плавного перехода
+      // Но с небольшо задержкой для гарантии, что cookie сохранены
       setTimeout(() => {
-        // Обновляем кеш React Query
-        queryClient.setQueryData(['user'], data.user);
-        
-        // Принудительный редирект с полным обновлением страницы
-        window.location.href = redirectUrl;
-      }, 500);
+        router.push(redirectUrl);
+      }, 100);
     } catch (err: any) {
       setError(err.message || "Ошибка проверки кода");
       setLoading(false); // Только при ошибке
