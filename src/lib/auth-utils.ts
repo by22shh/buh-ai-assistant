@@ -135,11 +135,10 @@ export async function checkAccessPeriod(userId: string): Promise<{
   status: 'active' | 'expired' | 'not_granted' | 'not_started';
   message?: string;
 }> {
+  // Сначала проверяем роль
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      accessFrom: true,
-      accessUntil: true,
       role: true,
     },
   });
@@ -153,28 +152,41 @@ export async function checkAccessPeriod(userId: string): Promise<{
     return { hasAccess: true, status: 'active' };
   }
 
+  // Получаем данные доступа отдельным запросом
+  const accessData = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      accessFrom: true,
+      accessUntil: true,
+    },
+  });
+
+  if (!accessData) {
+    return { hasAccess: false, status: 'not_granted', message: 'Данные доступа не найдены' };
+  }
+
   const now = new Date();
   
   // Если доступ не назначен
-  if (!user.accessFrom || !user.accessUntil) {
+  if (!accessData.accessFrom || !accessData.accessUntil) {
     return { hasAccess: false, status: 'not_granted', message: 'Доступ не предоставлен' };
   }
   
   // Если доступ еще не начался
-  if (now < user.accessFrom) {
+  if (now < accessData.accessFrom) {
     return { 
       hasAccess: false, 
       status: 'not_started', 
-      message: `Доступ начнется ${user.accessFrom.toLocaleDateString('ru-RU')}` 
+      message: `Доступ начнется ${accessData.accessFrom.toLocaleDateString('ru-RU')}` 
     };
   }
   
   // Если доступ истек
-  if (now > user.accessUntil) {
+  if (now > accessData.accessUntil) {
     return { 
       hasAccess: false, 
       status: 'expired', 
-      message: `Доступ истек ${user.accessUntil.toLocaleDateString('ru-RU')}` 
+      message: `Доступ истек ${accessData.accessUntil.toLocaleDateString('ru-RU')}` 
     };
   }
   
