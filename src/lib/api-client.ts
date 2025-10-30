@@ -81,21 +81,25 @@ export async function apiClient<T = any>(
       // Refresh не удался, продолжаем с редиректом на логин
     }
 
-    // Редирект на логин только если:
-    // 1. Это 401 и refresh не помог (или уже была попытка)
-    // 2. Это 403 (Forbidden - недостаточно прав)
-    // НО: Не редиректим если мы уже на странице логина или если это первый запрос на /api/users/me
+    // Редиректы при ошибках авторизации/доступа
     if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
       const currentPath = window.location.pathname;
-      
-      // Не редиректим если мы уже на странице авторизации
-      if (currentPath !== '/auth/login' && !currentPath.startsWith('/auth/')) {
-        const target = '/auth/login' + (currentPath && currentPath !== '/auth/login' ? `?next=${encodeURIComponent(currentPath + window.location.search)}` : '');
-        // Используем hard redirect, чтобы сбросить возможное клиентское состояние
-        window.location.href = target;
-        // Возвращаем Promise, который никогда не резолвится, чтобы остановить дальнейшую обработку
-        // и избежать гонок до редиректа
-        return new Promise<T>(() => {});
+
+      // 403: доступ ограничен (например, истек пробный период) → на страницу триала
+      if (response.status === 403) {
+        if (currentPath !== '/trial/expired') {
+          window.location.href = '/trial/expired';
+          return new Promise<T>(() => {});
+        }
+      }
+
+      // 401: неавторизован → на страницу логина (если мы не в /auth/*)
+      if (response.status === 401) {
+        if (currentPath !== '/auth/login' && !currentPath.startsWith('/auth/')) {
+          const target = '/auth/login' + (currentPath && currentPath !== '/auth/login' ? `?next=${encodeURIComponent(currentPath + window.location.search)}` : '');
+          window.location.href = target;
+          return new Promise<T>(() => {});
+        }
       }
     }
 
