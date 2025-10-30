@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "send_verification_code_to_email",
+    "description": "Test sending a 6-digit verification code to a valid email address. Verify rate limiting is enforced and security measures prevent timing attacks. Check response for success and token presence."
+  },
+  {
+    "id": "TC002",
+    "title": "verify_code_and_login_user",
+    "description": "Test verifying the 6-digit code with correct and incorrect codes. Validate JWT token issuance, user creation or update, and HttpOnly cookie setting. Check for proper error responses on invalid code and rate limit exceeded."
+  },
+  {
+    "id": "TC003",
+    "title": "get_current_user_profile",
+    "description": "Test retrieving the current authenticated user's profile. Validate response contains user details including id, email, firstName, lastName, and role. Check unauthorized access handling."
+  },
+  {
+    "id": "TC004",
+    "title": "update_user_profile_with_email_change_verification",
+    "description": "Test updating user profile fields including firstName, lastName, email, position, and company. Validate email change triggers verification process. Check validation errors, unauthorized access, and email conflict handling."
+  },
+  {
+    "id": "TC005",
+    "title": "list_user_organizations",
+    "description": "Test retrieving the list of organizations associated with the authenticated user. Validate response structure and unauthorized access handling."
+  },
+  {
+    "id": "TC006",
+    "title": "create_organization_with_valid_requisites",
+    "description": "Test creating a new organization with valid fields such as name_full, inn, and address_legal. Validate JSON schema and business rules for requisites. Check for validation errors and unauthorized access."
+  },
+  {
+    "id": "TC007",
+    "title": "get_organization_by_id",
+    "description": "Test retrieving organization details by valid ID. Validate response content and handling of unauthorized access and not found errors."
+  },
+  {
+    "id": "TC008",
+    "title": "update_organization_with_validation",
+    "description": "Test updating an existing organization by ID with valid data. Validate JSON schema and business rules. Check for validation errors, unauthorized access, and not found errors."
+  },
+  {
+    "id": "TC009",
+    "title": "delete_organization_by_id",
+    "description": "Test deleting an organization by valid ID. Validate successful deletion response and handling of not found errors."
+  },
+  {
+    "id": "TC010",
+    "title": "create_new_document_with_template_support",
+    "description": "Test creating a new document with required templateCode and optional organizationId, title, and bodyText. Validate access period and demo limits enforcement. Check for validation errors, unauthorized access, and access denied responses."
+  }
+]

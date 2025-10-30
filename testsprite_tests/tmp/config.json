@@ -1,0 +1,16 @@
+{
+  "status": "init",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000/",
+  "executionArgs": {
+    "projectName": "buh-ai-assistant",
+    "projectPath": "/Users/Bayramov_N/Desktop/buh-ai-assistant",
+    "testIds": [],
+    "additionalInstruction": "Ensure API responses are faster by implementing proper request timeouts",
+    "envs": {
+      "API_KEY": "sk-user-R6H2KDp42RerJNVgWZf2xSVqK7p1-X_WCQeq9gNtT9b5HgaQRNyvw98PgQHpm304e8g5DXtQ_TLgtgX_wKbVcBgqruug11nJVs_nF6gasSwpL_YY38bW9bzNmraKO4pNZNw"
+    }
+  },
+  "proxy": "http://c55b58db-be71-44cb-897d-c7b0a43bf0a9:TO2veg09IWwndQtiBJ0oQoKjsiVU9U2O@tun.testsprite.com:8080"
+}

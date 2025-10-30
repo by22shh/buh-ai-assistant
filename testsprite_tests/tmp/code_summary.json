@@ -1,0 +1,405 @@
+{
+  "tech_stack": ["TypeScript", "Next.js 15", "PostgreSQL", "Prisma ORM", "React", "JWT", "OpenAI", "Nodemailer"],
+  "features": [
+    {
+      "name": "Authentication - Send Code",
+      "description": "Send 6-digit verification code to email for user login. Implements rate limiting and security measures to prevent timing attacks.",
+      "files": ["src/app/api/auth/send-code/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "info": {
+          "title": "Send Code API",
+          "version": "1.0.0"
+        },
+        "paths": {
+          "/api/auth/send-code": {
+            "post": {
+              "summary": "Send verification code to email",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string", "format": "email" }
+                      },
+                      "required": ["email"]
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "Code sent successfully",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "success": { "type": "boolean" },
+                          "message": { "type": "string" },
+                          "token": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "400": { "description": "Validation error" },
+                "429": { "description": "Too many requests" },
+                "500": { "description": "Internal server error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Authentication - Verify Code",
+      "description": "Verify the 6-digit code and issue JWT tokens for user authentication. Creates or updates user and sets HttpOnly cookies.",
+      "files": ["src/app/api/auth/verify-code/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/auth/verify-code": {
+            "post": {
+              "summary": "Verify code and login user",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string" },
+                        "code": { "type": "string" }
+                      },
+                      "required": ["email", "code"]
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "Authentication successful",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "success": { "type": "boolean" },
+                          "user": { "type": "object" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "400": { "description": "Invalid code" },
+                "429": { "description": "Rate limit exceeded" },
+                "500": { "description": "Internal server error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "User Profile Management",
+      "description": "Get and update current user profile. Handles email change with verification. Includes validation using Zod schemas.",
+      "files": ["src/app/api/users/me/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/users/me": {
+            "get": {
+              "summary": "Get current user profile",
+              "responses": {
+                "200": {
+                  "description": "User profile",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "email": { "type": "string" },
+                          "firstName": { "type": "string" },
+                          "lastName": { "type": "string" },
+                          "role": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "401": { "description": "Unauthorized" },
+                "500": { "description": "Internal server error" }
+              }
+            },
+            "put": {
+              "summary": "Update user profile",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "firstName": { "type": "string" },
+                        "lastName": { "type": "string" },
+                        "email": { "type": "string" },
+                        "position": { "type": "string" },
+                        "company": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": { "description": "Profile updated" },
+                "400": { "description": "Validation error" },
+                "401": { "description": "Unauthorized" },
+                "409": { "description": "Email already in use" },
+                "500": { "description": "Internal server error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Organizations Management",
+      "description": "Full CRUD operations for organizations with complete business requisites (INN, KPP, OGRN, bank details, addresses, etc.). Users can have multiple organizations.",
+      "files": ["src/app/api/organizations/route.ts", "src/app/api/organizations/[id]/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/organizations": {
+            "get": {
+              "summary": "List user organizations",
+              "responses": {
+                "200": {
+                  "description": "List of organizations",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "array",
+                        "items": { "type": "object" }
+                      }
+                    }
+                  }
+                },
+                "401": { "description": "Unauthorized" }
+              }
+            },
+            "post": {
+              "summary": "Create organization",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "name_full": { "type": "string" },
+                        "inn": { "type": "string" },
+                        "address_legal": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "201": { "description": "Organization created" },
+                "400": { "description": "Validation error" },
+                "401": { "description": "Unauthorized" }
+              }
+            }
+          },
+          "/api/organizations/{id}": {
+            "get": {
+              "summary": "Get organization by ID",
+              "parameters": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "schema": { "type": "string" }
+                }
+              ],
+              "responses": {
+                "200": { "description": "Organization details" },
+                "401": { "description": "Unauthorized" },
+                "404": { "description": "Not found" }
+              }
+            },
+            "put": {
+              "summary": "Update organization",
+              "parameters": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "schema": { "type": "string" }
+                }
+              ],
+              "responses": {
+                "200": { "description": "Organization updated" },
+                "400": { "description": "Validation error" },
+                "404": { "description": "Not found" }
+              }
+            },
+            "delete": {
+              "summary": "Delete organization",
+              "parameters": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "schema": { "type": "string" }
+                }
+              ],
+              "responses": {
+                "200": { "description": "Deleted successfully" },
+                "404": { "description": "Not found" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Documents Management",
+      "description": "Create and manage documents with template support. Implements demo limits and access period checks. Documents can be associated with organizations.",
+      "files": ["src/app/api/documents/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/documents": {
+            "get": {
+              "summary": "List user documents",
+              "responses": {
+                "200": {
+                  "description": "List of documents",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "array",
+                        "items": { "type": "object" }
+                      }
+                    }
+                  }
+                },
+                "401": { "description": "Unauthorized" }
+              }
+            },
+            "post": {
+              "summary": "Create new document",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "organizationId": { "type": "string" },
+                        "templateCode": { "type": "string" },
+                        "title": { "type": "string" },
+                        "bodyText": { "type": "string" }
+                      },
+                      "required": ["templateCode"]
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "201": { "description": "Document created" },
+                "400": { "description": "Validation error" },
+                "401": { "description": "Unauthorized" },
+                "403": { "description": "Access denied or limit exceeded" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Templates Management",
+      "description": "Public API to get enabled document templates. Used for displaying available document types to users.",
+      "files": ["src/app/api/templates/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/templates": {
+            "get": {
+              "summary": "Get enabled templates",
+              "responses": {
+                "200": {
+                  "description": "List of enabled templates",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "array",
+                        "items": { "type": "object" }
+                      }
+                    }
+                  }
+                },
+                "500": { "description": "Internal server error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Document Generation - DOCX",
+      "description": "Generate DOCX files from document text and requisites. Formats document with proper headings, paragraphs, and organization details.",
+      "files": ["src/app/api/documents/generate-docx/route.ts"],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/documents/generate-docx": {
+            "post": {
+              "summary": "Generate DOCX file",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "bodyText": { "type": "string" },
+                        "templateName": { "type": "string" },
+                        "requisites": { "type": "object" },
+                        "organization": { "type": "object" }
+                      },
+                      "required": ["bodyText"]
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "DOCX file",
+                  "content": {
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                      "schema": {
+                        "type": "string",
+                        "format": "binary"
+                      }
+                    }
+                  }
+                },
+                "400": { "description": "Invalid request" },
+                "401": { "description": "Unauthorized" },
+                "500": { "description": "Generation error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+
+
