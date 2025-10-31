@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { templateConfigSchema } from '@/lib/schemas/template';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 /**
  * GET /api/admin/template-configs/:code
@@ -78,12 +79,17 @@ export async function PUT(
     }
 
     // Создаем или обновляем конфигурацию
+    const requisitesConfig =
+      validated.requisitesConfig === null
+        ? Prisma.JsonNull
+        : (validated.requisitesConfig as Prisma.InputJsonValue);
+
     const config = await prisma.templateConfig.upsert({
       where: { templateCode: resolvedParams.code },
-      update: { requisitesConfig: validated.requisitesConfig || null },
-      create: { 
+      update: { requisitesConfig },
+      create: {
         templateCode: resolvedParams.code,
-        requisitesConfig: validated.requisitesConfig || null
+        requisitesConfig,
       },
     });
 
