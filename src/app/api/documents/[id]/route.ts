@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { updateDocumentSchema } from '@/lib/schemas/document';
+import { z } from 'zod';
 
 /**
  * GET /api/documents/[id]
@@ -82,16 +84,19 @@ export async function PUT(
       );
     }
 
-    const data = await request.json();
+    const body = await request.json();
+
+    // Валидация с Zod
+    const validated = updateDocumentSchema.parse(body);
 
     const document = await prisma.document.update({
       where: { id },
       data: {
-        organizationId: data.organizationId,
-        title: data.title,
-        bodyText: data.bodyText,
-        requisites: data.requisites,
-        hasBodyChat: data.hasBodyChat,
+        organizationId: validated.organizationId || undefined,
+        title: validated.title || undefined,
+        bodyText: validated.bodyText || undefined,
+        requisites: validated.requisites || undefined,
+        hasBodyChat: validated.hasBodyChat ?? undefined,
       },
       include: {
         organization: true,
@@ -100,6 +105,19 @@ export async function PUT(
 
     return NextResponse.json(document);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: 'Validation error',
+          details: error.issues.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        },
+        { status: 400 }
+      );
+    }
+
     console.error('PUT /api/documents/[id] error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

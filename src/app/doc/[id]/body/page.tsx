@@ -65,6 +65,22 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
   }, [messages]);
 
   const template = templateCode ? getTemplateByCode(templateCode) : null;
+  const [dbTemplate, setDbTemplate] = useState<any | null>(null);
+
+  useEffect(() => {
+    async function loadTemplate() {
+      if (!templateCode) return;
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const list = await res.json();
+          const found = list.find((t: any) => t.code === templateCode);
+          if (found) setDbTemplate(found);
+        }
+      } catch (e) {}
+    }
+    loadTemplate();
+  }, [templateCode]);
 
   if (!template) {
     return (
@@ -290,7 +306,7 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         <div className="container mx-auto px-4 py-3 md:py-4">
           <h1 className="text-lg md:text-2xl font-bold">Тело документа — чат</h1>
           <p className="text-xs md:text-sm text-muted-foreground mt-1">
-            {template.nameRu} · {template.version}
+            {(template?.nameRu || dbTemplate?.nameRu || templateCode)} · {(template?.version || dbTemplate?.version || '')}
           </p>
         </div>
       </header>

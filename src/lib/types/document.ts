@@ -1,11 +1,9 @@
 export interface Document {
   id: string; // Prisma ID
-  docId?: string; // Legacy field для совместимости
   title?: string;
   templateCode: string;
   templateVersion: string;
   organizationId?: string;
-  organizationName?: string;
   hasBodyChat: boolean;
   bodyText?: string;
   requisites?: Record<string, any>;

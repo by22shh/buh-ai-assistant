@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 /**
  * POST /api/documents/generate-docx
@@ -7,6 +8,15 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } fro
  */
 export async function POST(request: NextRequest) {
   try {
+    // Проверка авторизации
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const {
       bodyText,
       requisites,
@@ -174,17 +184,30 @@ export async function POST(request: NextRequest) {
 // Вспомогательная функция для форматирования меток реквизитов
 function formatRequisiteLabel(key: string): string {
   const labels: Record<string, string> = {
-    bank_name: 'Наименование банка',
-    bank_bik: 'БИК',
-    bank_corr_account: 'Корр. счёт',
-    settlement_account: 'Расчётный счёт',
-    legal_address: 'Юридический адрес',
-    postal_address: 'Почтовый адрес',
+    name_full: 'Полное наименование',
+    name_short: 'Краткое наименование',
+    inn: 'ИНН',
+    kpp: 'КПП',
+    ogrn: 'ОГРН',
+    ogrnip: 'ОГРНИП',
+    okpo: 'ОКПО',
+    okved: 'ОКВЭД',
+    address_legal: 'Юридический адрес',
+    address_postal: 'Почтовый адрес',
     phone: 'Телефон',
     email: 'Email',
-    ceo_name: 'Руководитель (ФИО)',
-    ceo_position: 'Должность',
-    accountant_name: 'Главный бухгалтер (ФИО)'
+    website: 'Веб-сайт',
+    head_title: 'Должность руководителя',
+    head_fio: 'ФИО руководителя',
+    authority_base: 'Действует на основании',
+    poa_number: 'Номер доверенности',
+    poa_date: 'Дата доверенности',
+    bank_bik: 'БИК',
+    bank_name: 'Наименование банка',
+    bank_ks: 'Корр. счёт',
+    bank_rs: 'Расчётный счёт',
+    seal_note: 'Примечание о печати',
+    notes: 'Заметки'
   };
 
   return labels[key] || key;

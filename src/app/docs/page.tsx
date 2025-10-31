@@ -15,7 +15,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentPreview } from "@/components/DocumentPreview";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { templates } from "@/lib/data/templates";
+// Подтягиваем список шаблонов из БД для фильтров и отображения
 import { DocumentListSkeleton, DocumentTableRowSkeleton } from "@/components/skeletons/DocumentSkeleton";
 
 export default function DocumentsArchivePage() {
@@ -24,6 +24,7 @@ export default function DocumentsArchivePage() {
   const { documents: allDocuments, isLoading: docsLoading, error: docsError } = useDocuments();
   const { organizations: userOrganizations, isLoading: orgsLoading } = useOrganizations();
   const [previewDocId, setPreviewDocId] = useState<string | null>(null);
+  const [dbTemplates, setDbTemplates] = useState<any[]>([]);
 
   // Поиск и фильтры
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,12 +105,26 @@ export default function DocumentsArchivePage() {
     );
   }
 
+  // Load templates from DB for filters and labels
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const list = await res.json();
+          setDbTemplates(list);
+        }
+      } catch (e) {}
+    }
+    loadTemplates();
+  }, []);
+
   // Фильтрация и сортировка
   const documents = allDocuments
     .filter((doc) => {
       // Поиск по названию
       if (searchQuery) {
-        const template = getTemplateByCode(doc.templateCode);
+        const template = getTemplateByCode(doc.templateCode) || dbTemplates.find(t => t.code === doc.templateCode);
         const searchLower = searchQuery.toLowerCase();
         const titleMatch = doc.title?.toLowerCase().includes(searchLower);
         const templateMatch = template?.nameRu.toLowerCase().includes(searchLower);
@@ -132,14 +147,14 @@ export default function DocumentsArchivePage() {
       if (sortBy === "date") {
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       } else {
-        const aTitle = a.title || getTemplateByCode(a.templateCode)?.nameRu || "";
-        const bTitle = b.title || getTemplateByCode(b.templateCode)?.nameRu || "";
+        const aTitle = a.title || (getTemplateByCode(a.templateCode)?.nameRu || dbTemplates.find(t => t.code === a.templateCode)?.nameRu || "");
+        const bTitle = b.title || (getTemplateByCode(b.templateCode)?.nameRu || dbTemplates.find(t => t.code === b.templateCode)?.nameRu || "");
         return aTitle.localeCompare(bTitle);
       }
     });
 
   const handleDownload = async (docId: string, format: "docx" | "pdf") => {
-    const doc = documents.find(d => d.docId === docId || d.id === docId);
+    const doc = documents.find(d => d.id === docId);
     if (!doc) {
       toast.error('Документ не найден');
       return;
@@ -248,7 +263,7 @@ export default function DocumentsArchivePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все шаблоны</SelectItem>
-                  {templates.map((t) => (
+                  {(dbTemplates.length ? dbTemplates : []).map((t: any) => (
                     <SelectItem key={t.code} value={t.code}>
                       {t.nameRu}
                     </SelectItem>
@@ -340,18 +355,16 @@ export default function DocumentsArchivePage() {
             {/* Мобильная версия - карточки */}
             <div className="block md:hidden space-y-4">
               {documents.map((doc) => {
-                const template = getTemplateByCode(doc.templateCode);
+                const template = getTemplateByCode(doc.templateCode) || dbTemplates.find(t => t.code === doc.templateCode);
                 const organization = doc.organizationId
                   ? userOrganizations.find(o => o.id === doc.organizationId)
                   : null;
 
                 return (
-                  <Card key={doc.docId} className="p-4">
+                  <Card key={doc.id} className="p-4">
                     <div className="space-y-3">
                       <div>
-                        <h3 className="font-semibold">
-                          {doc.title || `${template?.nameRu || doc.templateCode}`}
-                        </h3>
+                        <h3 className="font-semibold">{doc.title || `${template?.nameRu || doc.templateCode}`}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
                           {template?.nameRu || doc.templateCode}
                         </p>
@@ -383,7 +396,7 @@ export default function DocumentsArchivePage() {
                       <div className="flex flex-col gap-2 pt-2">
                         <Button
                           size="sm"
-                          onClick={() => setPreviewDocId((doc.docId || doc.id)!)}
+                          onClick={() => setPreviewDocId(doc.id)}
                           className="w-full"
                         >
                           <Eye className="w-4 h-4 mr-1" />
@@ -393,7 +406,7 @@ export default function DocumentsArchivePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDownload((doc.docId || doc.id)!, "docx")}
+                            onClick={() => handleDownload(doc.id, "docx")}
                             className="flex-1"
                           >
                             <Download className="w-4 h-4 mr-1" />
@@ -402,7 +415,7 @@ export default function DocumentsArchivePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDownload((doc.docId || doc.id)!, "pdf")}
+                            onClick={() => handleDownload(doc.id, "pdf")}
                             className="flex-1"
                           >
                             <Download className="w-4 h-4 mr-1" />
@@ -437,7 +450,7 @@ export default function DocumentsArchivePage() {
                     : null;
 
                   return (
-                    <TableRow key={doc.docId}>
+                    <TableRow key={doc.id}>
                       <TableCell className="font-medium">
                         {doc.title || `${template?.nameRu || doc.templateCode}`}
                       </TableCell>
@@ -467,7 +480,7 @@ export default function DocumentsArchivePage() {
                         <div className="flex gap-2 justify-end">
                           <Button
                             size="sm"
-                            onClick={() => setPreviewDocId((doc.docId || doc.id)!)}
+                            onClick={() => setPreviewDocId(doc.id)}
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             Предпросмотр
@@ -475,7 +488,7 @@ export default function DocumentsArchivePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDownload((doc.docId || doc.id)!, "docx")}
+                            onClick={() => handleDownload(doc.id, "docx")}
                           >
                             <Download className="w-4 h-4 mr-1" />
                             DOCX
@@ -483,7 +496,7 @@ export default function DocumentsArchivePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDownload((doc.docId || doc.id)!, "pdf")}
+                            onClick={() => handleDownload(doc.id, "pdf")}
                           >
                             <Download className="w-4 h-4 mr-1" />
                             PDF
@@ -508,10 +521,10 @@ export default function DocumentsArchivePage() {
 
       {/* Предпросмотр документа */}
       {previewDocId && (() => {
-        const doc = documents.find(d => d.docId === previewDocId || d.id === previewDocId);
+        const doc = documents.find(d => d.id === previewDocId);
         if (!doc) return null;
 
-        const template = getTemplateByCode(doc.templateCode);
+                  const template = getTemplateByCode(doc.templateCode) || dbTemplates.find(t => t.code === doc.templateCode);
         const organization = doc.organizationId
           ? userOrganizations.find(o => o.id === doc.organizationId)
           : null;
@@ -527,11 +540,11 @@ export default function DocumentsArchivePage() {
             organization={organization}
             onDownloadDOCX={() => {
               setPreviewDocId(null);
-              handleDownload(doc.docId || doc.id, "docx");
+              handleDownload(doc.id, "docx");
             }}
             onDownloadPDF={() => {
               setPreviewDocId(null);
-              handleDownload(doc.docId || doc.id, "pdf");
+              handleDownload(doc.id, "pdf");
             }}
           />
         );

@@ -6,41 +6,111 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { getTemplateByCode } from "@/lib/data/templates";
+import { templates, getTemplateByCode, type Template } from "@/lib/data/templates";
 import { categories } from "@/lib/data/categories";
 import { tags } from "@/lib/data/tags";
 import { toast } from "sonner";
 
-export default function EditTemplatePage({ params }: { params: Promise<{ code: string }> }) {
+export default function AdminTemplateEditPage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
+  const { user, isLoading } = useUser();
   const resolvedParams = use(params);
   const templateCode = resolvedParams.code;
 
-  const [loading, setLoading] = useState(false);
-  const template = getTemplateByCode(templateCode);
+  const [originalTemplate, setOriginalTemplate] = useState(getTemplateByCode(templateCode));
+  const [saving, setSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    code: template?.code || "",
-    nameRu: template?.nameRu || "",
-    shortDescription: template?.shortDescription || "",
-    hasBodyChat: template?.hasBodyChat || false,
-    category: template?.category || "",
-    tags: template?.tags || [] as string[],
-    isEnabled: template?.isEnabled ?? true,
-    version: template?.version || "v1.0"
+  // Form state
+  const [formData, setFormData] = useState<Partial<Template>>({
+    code: "",
+    nameRu: "",
+    shortDescription: "",
+    hasBodyChat: true,
+    category: "",
+    tags: [],
+    isEnabled: true,
+    version: "1.0",
   });
-
-  const { user, isLoading } = useUser();
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "admin")) {
       router.push("/templates");
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (originalTemplate) {
+      setFormData(originalTemplate);
+    }
+  }, [originalTemplate]);
+
+  // Если шаблон уже создан в БД — подтягиваем значения из API
+  useEffect(() => {
+    async function loadDbTemplate() {
+      if (!user || user.role !== 'admin') return;
+      try {
+        const res = await fetch(`/api/admin/templates/${templateCode}`);
+        if (!res.ok) return;
+        const dbTemplate = await res.json();
+        setFormData((prev) => ({ ...prev, ...dbTemplate }));
+      } catch (e) {
+        // игнорируем, если нет в БД
+      }
+    }
+    loadDbTemplate();
+  }, [user, templateCode]);
+
+  const handleSave = async () => {
+    if (!formData.nameRu || !formData.code || !formData.shortDescription) {
+      toast.error("Заполните все обязательные поля");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/templates/${templateCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nameRu: formData.nameRu,
+          shortDescription: formData.shortDescription,
+          hasBodyChat: formData.hasBodyChat,
+          category: formData.category,
+          tags: formData.tags || [],
+          isEnabled: formData.isEnabled,
+          version: formData.version,
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(data?.error || 'Ошибка при сохранении изменений');
+        return;
+      }
+
+      toast.success("Изменения сохранены!");
+      router.push(`/admin/templates/${formData.code}`);
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast.error("Ошибка при сохранении изменений");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTagToggle = (tagCode: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: checked 
+        ? [...(prev.tags || []), tagCode]
+        : (prev.tags || []).filter(t => t !== tagCode)
+    }));
+  };
 
   if (isLoading) {
     return (
@@ -52,44 +122,25 @@ export default function EditTemplatePage({ params }: { params: Promise<{ code: s
 
   if (!user || user.role !== "admin") return null;
 
-  if (!template) {
+  if (!originalTemplate) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Шаблон не найден</h1>
-          <Button onClick={() => router.push("/admin/templates")}>
-            Вернуться к шаблонам
-          </Button>
-        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Шаблон не найден</CardTitle>
+            <CardDescription>
+              Шаблон с кодом &quot;{templateCode}&quot; не существует
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push("/admin/templates")}>
+              Назад к шаблонам
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    // В production здесь будет API вызов для сохранения изменений
-    toast.info("Функция редактирования шаблонов будет доступна в следующей версии");
-
-    setTimeout(() => {
-      setLoading(false);
-      router.push(`/admin/templates/${templateCode}`);
-    }, 1000);
-  };
-
-  const toggleTag = (tagCode: string) => {
-    if (formData.tags.includes(tagCode)) {
-      setFormData({ ...formData, tags: formData.tags.filter(t => t !== tagCode) });
-    } else {
-      // ТЗ: Максимум 5 тегов
-      if (formData.tags.length >= 5) {
-        toast.error("Максимум 5 тегов можно выбрать");
-        return;
-      }
-      setFormData({ ...formData, tags: [...formData.tags, tagCode] });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-muted/50">
@@ -97,70 +148,99 @@ export default function EditTemplatePage({ params }: { params: Promise<{ code: s
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Редактировать шаблон</h1>
-              <p className="text-sm text-muted-foreground font-mono mt-1">{template.code}</p>
+              <h1 className="text-2xl font-bold">Редактирование шаблона</h1>
+              <p className="text-muted-foreground">Код: {templateCode}</p>
             </div>
-            <Button variant="outline" onClick={() => router.push(`/admin/templates/${templateCode}`)}>
-              Отмена
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Сохранение..." : "Сохранить"}
+              </Button>
+              <Button variant="outline" onClick={() => router.push(`/admin/templates/${templateCode}`)}>
+                Отмена
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="grid gap-6">
+          {/* Основная информация */}
           <Card>
             <CardHeader>
               <CardTitle>Основная информация</CardTitle>
+              <CardDescription>
+                Базовые настройки шаблона
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="code">Код шаблона</Label>
-                <Input
-                  id="code"
-                  value={formData.code}
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Код шаблона нельзя изменить
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="code">Код шаблона *</Label>
+                  <Input
+                    id="code"
+                    value={formData.code}
+                    onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                    placeholder="template_code_123"
+                    disabled // Обычно код не меняется
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="version">Версия</Label>
+                  <Input
+                    id="version"
+                    value={formData.version}
+                    onChange={(e) => setFormData(prev => ({ ...prev, version: e.target.value }))}
+                    placeholder="1.0"
+                  />
+                </div>
               </div>
 
               <div>
-                <Label htmlFor="nameRu">Название на русском *</Label>
+                <Label htmlFor="nameRu">Название *</Label>
                 <Input
                   id="nameRu"
                   value={formData.nameRu}
-                  onChange={(e) => setFormData({ ...formData, nameRu: e.target.value })}
-                  required
+                  onChange={(e) => setFormData(prev => ({ ...prev, nameRu: e.target.value }))}
+                  placeholder="Название шаблона"
                 />
               </div>
 
               <div>
-                <Label htmlFor="shortDescription">Краткое описание *</Label>
+                <Label htmlFor="shortDescription">Описание *</Label>
                 <Textarea
                   id="shortDescription"
                   value={formData.shortDescription}
-                  onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                  required
+                  onChange={(e) => setFormData(prev => ({ ...prev, shortDescription: e.target.value }))}
+                  placeholder="Краткое описание шаблона..."
                   rows={3}
                 />
               </div>
+            </CardContent>
+          </Card>
 
+          {/* Категоризация */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Категоризация</CardTitle>
+              <CardDescription>
+                Настройка категории и тегов для классификации
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="category">Категория *</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                <Label htmlFor="category">Категория</Label>
+                <Select 
+                  value={formData.category} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.code} value={cat.code}>
-                        {cat.nameRu}
+                    {categories.map((category) => (
+                      <SelectItem key={category.code} value={category.code}>
+                        {category.nameRu}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -168,81 +248,106 @@ export default function EditTemplatePage({ params }: { params: Promise<{ code: s
               </div>
 
               <div>
-                <Label htmlFor="version">Версия</Label>
-                <Input
-                  id="version"
-                  value={formData.version}
-                  onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="hasBodyChat"
-                  checked={formData.hasBodyChat}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, hasBodyChat: checked as boolean })
-                  }
-                />
-                <Label htmlFor="hasBodyChat">Требуется диалог с ИИ для тела документа</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="isEnabled"
-                  checked={formData.isEnabled}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isEnabled: checked as boolean })
-                  }
-                />
-                <Label htmlFor="isEnabled">Шаблон активен</Label>
+                <Label>Теги</Label>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  {tags.map((tag) => (
+                    <div key={tag.code} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={tag.code}
+                        checked={formData.tags?.includes(tag.code) || false}
+                        onCheckedChange={(checked) => handleTagToggle(tag.code, checked as boolean)}
+                      />
+                      <Label htmlFor={tag.code} className="text-sm">
+                        {tag.nameRu}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Функциональность */}
           <Card>
             <CardHeader>
-              <CardTitle>Теги (выбрано: {formData.tags.length})</CardTitle>
+              <CardTitle>Функциональность</CardTitle>
+              <CardDescription>
+                Настройки возможностей шаблона
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {tags.map((tag) => (
-                  <div key={tag.code} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`tag-${tag.code}`}
-                      checked={formData.tags.includes(tag.code)}
-                      onCheckedChange={() => toggleTag(tag.code)}
-                    />
-                    <Label htmlFor={`tag-${tag.code}`} className="text-sm cursor-pointer">
-                      {tag.nameRu}
-                    </Label>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasBodyChat"
+                  checked={formData.hasBodyChat || false}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, hasBodyChat: checked as boolean }))}
+                />
+                <Label htmlFor="hasBodyChat">
+                  Включить чат с ИИ для генерации текста
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isEnabled"
+                  checked={formData.isEnabled || false}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isEnabled: checked as boolean }))}
+                />
+                <Label htmlFor="isEnabled">
+                  Шаблон активен (доступен пользователям)
+                </Label>
               </div>
             </CardContent>
           </Card>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              <strong>Примечание:</strong> В текущей версии изменения шаблонов сохраняются только в памяти браузера.
-              Для полноценного редактирования требуется подключение backend API.
-            </p>
-          </div>
+          {/* Предварительный просмотр */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Предварительный просмотр</CardTitle>
+              <CardDescription>
+                Как шаблон будет выглядеть в каталоге
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg p-4 bg-background">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold">{formData.nameRu || "Название шаблона"}</h3>
+                  <div className="flex gap-1">
+                    <Badge variant="outline" className="text-xs">
+                      {categories.find(c => c.code === formData.category)?.nameRu || "Категория"}
+                    </Badge>
+                    {formData.hasBodyChat && (
+                      <Badge variant="secondary" className="text-xs">ИИ</Badge>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {formData.shortDescription || "Описание шаблона"}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {formData.tags?.map(tagCode => {
+                    const tag = tags.find(t => t.code === tagCode);
+                    return tag ? (
+                      <Badge key={tagCode} variant="outline" className="text-xs">
+                        {tag.nameRu}
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="flex gap-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Сохранение..." : "Сохранить изменения"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push(`/admin/templates/${templateCode}`)}
-              className="flex-1"
-            >
+          {/* Действия */}
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => router.push(`/admin/templates/${templateCode}`)}>
               Отмена
             </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Сохранение..." : "Сохранить изменения"}
+            </Button>
           </div>
-        </form>
+        </div>
       </main>
     </div>
   );

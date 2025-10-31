@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { templates } from "@/lib/data/templates";
+// Переводим каталог на загрузку из БД через публичный API
 import { categories, getCategoryByCode } from "@/lib/data/categories";
 import { tags, getTagByCode } from "@/lib/data/tags";
 import { useUser } from "@/hooks/useUser";
@@ -43,8 +43,23 @@ export default function TemplatesPage() {
 
   const demoStatus = user.demoStatus;
 
+  const [templatesFromDb, setTemplatesFromDb] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const list = await res.json();
+          setTemplatesFromDb(list);
+        }
+      } catch (e) {}
+    }
+    loadTemplates();
+  }, []);
+
   // Фильтрация шаблонов
-  const filteredTemplates = templates.filter((template) => {
+  const filteredTemplates = templatesFromDb.filter((template) => {
     if (!template.isEnabled) return false;
 
     // Поиск
@@ -86,10 +101,18 @@ export default function TemplatesPage() {
     const template = templates.find((t) => t.code === templateCode);
     if (!template) return;
 
-    // Проверка демо-лимита
-    if (demoStatus && !demoStatus.isActive && user.role !== "admin") {
-      router.push("/trial/expired");
-      return;
+    // Проверка доступа: сначала временный доступ, затем демо-лимит
+    // Если пользователь - админ, пропускаем проверку
+    if (user.role !== "admin") {
+      // Проверяем временный доступ (приоритет над демо-лимитом)
+      const now = new Date();
+      const hasTemporaryAccess = user.accessUntil && new Date(user.accessUntil) > now;
+      
+      // Если нет временного доступа - проверяем демо-лимит
+      if (!hasTemporaryAccess && demoStatus && !demoStatus.isActive) {
+        router.push("/trial/expired");
+        return;
+      }
     }
 
     // Создаем новый документ

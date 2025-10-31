@@ -27,12 +27,13 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
 
   const { user, isLoading: userLoading } = useUser();
   const { organizations, isLoading: orgsLoading } = useOrganizations();
-  const { createDocument } = useDocuments();
+  const { createDocument, getById } = useDocuments();
 
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [requisites, setRequisites] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [configuredFields, setConfiguredFields] = useState<RequisiteField[]>([]);
+  const [bodyText, setBodyText] = useState<string>("");
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -44,19 +45,72 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
       return;
     }
 
-    // TODO: Загружаем настроенные реквизиты для шаблона из API
+    // Загружаем настроенные реквизиты для шаблона из API
     if (templateCode) {
-      // Production: используем пустой массив до реализации API
-      const templateRequisites = null; // mockTemplateRequisites.getByTemplateCode(templateCode);
-      if (false) { // templateRequisites && templateRequisites.fields && templateRequisites.fields.length > 0) {
-        // Сортируем по order
-        const sortedFields = []; // [...templateRequisites.fields].sort((a, b) => a.order - b.order);
-        setConfiguredFields(sortedFields);
+      fetch(`/api/admin/template-configs/${templateCode}`)
+        .then(res => {
+          if (res.ok) {
+            return res.json();
+          }
+          // Если конфигурация не найдена (404), это нормально - используем fallback
+          return null;
+        })
+        .then(data => {
+          if (data?.requisitesConfig?.fields && Array.isArray(data.requisitesConfig.fields)) {
+            // Сортируем по order
+            const sortedFields = [...data.requisitesConfig.fields].sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
+            setConfiguredFields(sortedFields);
+          }
+        })
+        .catch(err => {
+          // Ошибка загрузки конфигурации - это не критично, используем fallback
+          console.error('Error loading requisites config:', err);
+        });
+    }
+
+    // Если есть bodyText из предыдущего шага, загружаем его из документа
+    if (hasBody && docId) {
+      const existingDoc = getById(docId);
+      if (existingDoc?.bodyText) {
+        setBodyText(existingDoc.bodyText);
+      } else {
+        // Если документ не найден в кеше, загружаем из API
+        fetch(`/api/documents/${docId}`)
+          .then(res => {
+            if (res.ok) {
+              return res.json();
+            }
+            return null;
+          })
+          .then(data => {
+            if (data?.bodyText) {
+              setBodyText(data.bodyText);
+            }
+          })
+          .catch(err => {
+            console.error('Error loading document bodyText:', err);
+          });
       }
     }
-  }, [userLoading, user, router, templateCode]);
+  }, [userLoading, user, router, templateCode, hasBody, docId, getById]);
 
   const template = templateCode ? getTemplateByCode(templateCode) : null;
+  const [dbTemplate, setDbTemplate] = useState<any | null>(null);
+
+  useEffect(() => {
+    async function loadTemplate() {
+      if (!templateCode) return;
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const list = await res.json();
+          const found = list.find((t: any) => t.code === templateCode);
+          if (found) setDbTemplate(found);
+        }
+      } catch (e) {}
+    }
+    loadTemplate();
+  }, [templateCode]);
 
   // Loading state
   if (userLoading || orgsLoading) {
@@ -132,7 +186,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         templateVersion: template.version,
         organizationId: selectedOrgId || undefined,
         hasBodyChat: hasBody,
-        bodyText: hasBody ? "Mock body text from AI chat" : undefined,
+        bodyText: hasBody ? bodyText || "Текст документа будет заполнен из чата" : undefined,
         requisites,
       });
 
@@ -210,7 +264,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold">Заполнение реквизитов</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {template.nameRu} · {template.version}
+            {(template?.nameRu || dbTemplate?.nameRu || templateCode)} · {(template?.version || dbTemplate?.version || '')}
           </p>
         </div>
       </header>

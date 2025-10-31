@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getCurrentUser } from '@/lib/auth-utils';
+import { checkAiChatRateLimit } from '@/lib/rate-limit';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -12,6 +14,29 @@ interface ChatMessage {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Проверка авторизации
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Rate limiting для AI чата
+    const rateLimitResult = await checkAiChatRateLimit(user.id);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Too Many Requests',
+          message: 'Слишком много запросов к AI. Попробуйте позже.',
+          retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
+        },
+        { status: 429 }
+      );
+    }
+
     const { userPrompt, templateName, conversationHistory } = await request.json();
 
     if (!userPrompt) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { updateOrganizationSchema } from '@/lib/schemas/organization';
+import { z } from 'zod';
 
 /**
  * GET /api/organizations/[id]
@@ -79,32 +81,67 @@ export async function PUT(
       );
     }
 
-    const data = await request.json();
+    const body = await request.json();
+
+    // Валидация с Zod
+    const validated = updateOrganizationSchema.parse(body);
 
     const organization = await prisma.organization.update({
       where: { id },
       data: {
-        name_full: data.name_full,
-        name_short: data.name_short,
-        inn: data.inn,
-        kpp: data.kpp,
-        ogrn: data.ogrn,
-        legal_address: data.legal_address,
-        postal_address: data.postal_address,
-        phone: data.phone,
-        email: data.email,
-        bank_name: data.bank_name,
-        bank_bik: data.bank_bik,
-        bank_corr_account: data.bank_corr_account,
-        settlement_account: data.settlement_account,
-        ceo_name: data.ceo_name,
-        ceo_position: data.ceo_position,
-        accountant_name: data.accountant_name,
+        // Основные данные
+        is_default: validated.is_default ?? undefined,
+        subject_type: validated.subject_type,
+        name_full: validated.name_full,
+        name_short: validated.name_short ?? undefined,
+        inn: validated.inn,
+        kpp: validated.kpp ?? undefined,
+        ogrn: validated.ogrn ?? undefined,
+        ogrnip: validated.ogrnip ?? undefined,
+        okpo: validated.okpo ?? undefined,
+        okved: validated.okved ?? undefined,
+        
+        // Адреса и контакты
+        address_legal: validated.address_legal,
+        address_postal: validated.address_postal ?? undefined,
+        phone: validated.phone ?? undefined,
+        email: validated.email,
+        website: validated.website ?? undefined,
+        
+        // Руководитель и полномочия
+        head_title: validated.head_title,
+        head_fio: validated.head_fio,
+        authority_base: validated.authority_base,
+        poa_number: validated.poa_number ?? undefined,
+        poa_date: validated.poa_date ?? undefined,
+        
+        // Банковские реквизиты
+        bank_bik: validated.bank_bik,
+        bank_name: validated.bank_name,
+        bank_ks: validated.bank_ks,
+        bank_rs: validated.bank_rs,
+        
+        // Дополнительная информация
+        seal_note: validated.seal_note ?? undefined,
+        notes: validated.notes ?? undefined,
       },
     });
 
     return NextResponse.json(organization);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: 'Validation error',
+          details: error.issues.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        },
+        { status: 400 }
+      );
+    }
+
     console.error('PUT /api/organizations/[id] error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

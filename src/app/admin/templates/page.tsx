@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { templates } from "@/lib/data/templates";
+// Переводим список на загрузку из БД через API
 import { categories, getCategoryByCode } from "@/lib/data/categories";
 import { getTagByCode } from "@/lib/data/tags";
 import { useUser } from "@/hooks/useUser";
@@ -38,7 +38,23 @@ export default function AdminTemplatesPage() {
 
   if (!user || user.role !== "admin") return null;
 
-  const filteredTemplates = templates.filter((template) => {
+  const [dbTemplates, setDbTemplates] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      if (!user || user.role !== 'admin') return;
+      try {
+        const res = await fetch('/api/admin/templates');
+        if (res.ok) {
+          const list = await res.json();
+          setDbTemplates(list);
+        }
+      } catch (e) {}
+    }
+    load();
+  }, [user]);
+
+  const filteredTemplates = dbTemplates.filter((template) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (

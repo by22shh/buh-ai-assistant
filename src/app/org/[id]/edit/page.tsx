@@ -52,38 +52,38 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
       if (!org) {
         toast.error("Организация не найдена");
         router.push("/org");
-      return;
-    }
+        return;
+      }
 
-    // Заполняем форму данными организации
-    setFormData({
-      is_default: org.is_default || false,
-      subject_type: org.subject_type,
-      name_full: org.name_full,
-      name_short: org.name_short,
-      inn: org.inn,
-      kpp: org.kpp,
-      ogrn: org.ogrn,
-      ogrnip: org.ogrnip,
-      okpo: org.okpo,
-      okved: org.okved,
-      address_legal: org.address_legal,
-      address_postal: org.address_postal,
-      phone: org.phone,
-      email: org.email,
-      website: org.website,
-      head_title: org.head_title,
-      head_fio: org.head_fio,
-      authority_base: org.authority_base,
-      poa_number: org.poa_number,
-      poa_date: org.poa_date,
-      bank_bik: org.bank_bik,
-      bank_name: org.bank_name,
-      bank_ks: org.bank_ks,
-      bank_rs: org.bank_rs,
-      seal_note: org.seal_note,
-      notes: org.notes
-    });
+      // Заполняем форму данными организации
+      setFormData({
+        is_default: org.is_default || false,
+        subject_type: org.subject_type,
+        name_full: org.name_full,
+        name_short: org.name_short,
+        inn: org.inn,
+        kpp: org.kpp,
+        ogrn: org.ogrn,
+        ogrnip: org.ogrnip,
+        okpo: org.okpo,
+        okved: org.okved,
+        address_legal: org.address_legal,
+        address_postal: org.address_postal,
+        phone: org.phone,
+        email: org.email,
+        website: org.website,
+        head_title: org.head_title,
+        head_fio: org.head_fio,
+        authority_base: org.authority_base,
+        poa_number: org.poa_number,
+        poa_date: org.poa_date,
+        bank_bik: org.bank_bik,
+        bank_name: org.bank_name,
+        bank_ks: org.bank_ks,
+        bank_rs: org.bank_rs,
+        seal_note: org.seal_note,
+        notes: org.notes
+      });
     }
   }, [user, userLoading, router, orgId, orgsLoading, organizations]);
 

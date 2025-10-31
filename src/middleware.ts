@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromRequest, verifyToken } from './lib/jwt';
 import { checkApiRateLimit, getIP } from './lib/rate-limit';
+import { prisma } from './lib/prisma';
 
 // Публичные пути, которые не требуют авторизации
 const PUBLIC_PATHS = [
   '/api/auth/send-code',
   '/api/auth/verify-code',
+  '/api/auth/refresh',
 ];
-
-// DEBUG: Включаем middleware с улучшенным логированием
-const SKIP_MIDDLEWARE = false;
 
 // Админские пути
 const ADMIN_PATHS = [
@@ -21,12 +20,6 @@ export async function middleware(request: NextRequest) {
 
   // Пропускаем не-API запросы
   if (!pathname.startsWith('/api/')) {
-    return NextResponse.next();
-  }
-
-  // ВРЕМЕННО: Пропускаем все API запросы, каждый route проверяет авторизацию сам
-  if (SKIP_MIDDLEWARE) {
-    console.log('⚠️ Middleware skipped for:', pathname);
     return NextResponse.next();
   }
 
@@ -57,18 +50,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Отладка: показываем все cookies
-  console.log('🔍 Middleware checking:', pathname);
-  console.log('🍪 All cookies:', request.cookies.getAll());
-  
   // Проверяем JWT токен
   const token = getTokenFromRequest(request);
-  console.log('🔑 Token from request:', token ? `${token.substring(0, 20)}...` : 'null');
 
   if (!token) {
-    console.log('❌ Middleware: No token provided for', pathname);
-    console.log('🍪 Cookie names:', request.cookies.getAll().map(c => `${c.name}=${c.value?.substring(0, 10)}...`));
-    console.log('🔍 Authorization header:', request.headers.get('authorization'));
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('❌ Middleware: No token provided');
+    }
     return NextResponse.json(
       { error: 'Unauthorized', message: 'No token provided' },
       { status: 401 }
@@ -78,14 +66,70 @@ export async function middleware(request: NextRequest) {
   const payload = verifyToken(token);
 
   if (!payload) {
-    console.log('❌ Middleware: Invalid or expired token for', pathname);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('❌ Middleware: Invalid or expired token');
+    }
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Invalid or expired token' },
       { status: 401 }
     );
   }
 
-  console.log('✅ Middleware: Token valid for', pathname, '- User:', payload.email);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ Middleware: Token valid');
+  }
+
+  // Проверяем временный доступ для обычных пользователей
+  if (payload.role === 'user') {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          accessFrom: true,
+          accessUntil: true,
+        },
+      });
+
+      if (user) {
+        const now = new Date();
+        
+        // Если доступ назначен, проверяем его действительность
+        if (user.accessUntil) {
+          // Если доступ истек
+          if (now > user.accessUntil) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('❌ Middleware: Access expired');
+            }
+            return NextResponse.json(
+              { 
+                error: 'Access Expired', 
+                message: 'Срок действия доступа истёк',
+              },
+              { status: 403 }
+            );
+          }
+          
+          // Если доступ еще не начался
+          if (user.accessFrom && now < user.accessFrom) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('❌ Middleware: Access not started');
+            }
+            return NextResponse.json(
+              { 
+                error: 'Access Not Started', 
+                message: 'Доступ ещё не начался',
+              },
+              { status: 403 }
+            );
+          }
+        }
+        // Если accessUntil не установлен, пользователь работает в демо-режиме (проверяется в API)
+      }
+    } catch (error) {
+      console.error('❌ Error checking user access in middleware:', error);
+      // В случае ошибки БД не блокируем запрос - лучше разрешить чем заблокировать всех
+    }
+  }
 
   // Проверяем доступ к админским путям
   if (ADMIN_PATHS.some(path => pathname.startsWith(path))) {
@@ -97,17 +141,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Добавляем payload в headers для использования в API routes
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id', payload.userId);
-  requestHeaders.set('x-user-email', payload.email);
-  requestHeaders.set('x-user-role', payload.role);
-
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  // Не устанавливаем headers с пользовательскими данными - каждый API route должен
+  // самостоятельно проверять JWT токен через getCurrentUser() для безопасности.
+  // Это предотвращает потенциальное использование подделанных headers от клиента.
+  return NextResponse.next();
 }
 
 export const config = {

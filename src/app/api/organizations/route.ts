@@ -67,8 +67,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Validation error',
-          // @ts-expect-error - errors exists on ZodError
-          details: error.errors.map((e: any) => ({
+          details: error.issues.map((e) => ({
             field: e.path.join('.'),
             message: e.message
           }))

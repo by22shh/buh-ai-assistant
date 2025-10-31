@@ -21,14 +21,25 @@ model User {
   phone         String?
   position      String?
   company       String?
+  
+  // Управление доступом по времени
+  accessFrom    DateTime?      // Дата начала доступа
+  accessUntil   DateTime?      // Дата окончания доступа
+  accessComment String?        // Комментарий администратора
+  accessUpdatedBy String?      // Email администратора, который последний раз обновлял доступ
+  
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   organizations Organization[]
   documents     Document[]
   demoStatus    DemoStatus?
+  accessHistory AccessHistory[]
+  refreshTokens RefreshToken[]
+  emailVerifications EmailVerification[]
 
   @@index([email])
+  @@index([accessUntil])
 }
 
 // Одноразовые коды для входа по email
@@ -53,26 +64,41 @@ model Organization {
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Основные данные
+  is_default      Boolean   @default(false)
+  subject_type    String    // "legal_entity" | "sole_proprietor"
   name_full       String
   name_short      String?
   inn             String
   kpp             String?
   ogrn            String?
-  legal_address   String?
-  postal_address  String?
+  ogrnip          String?
+  okpo            String?
+  okved           String?
+
+  // Адреса и контакты
+  address_legal   String
+  address_postal  String?
   phone           String?
-  email           String?
+  email           String
+  website         String?
+
+  // Руководитель и полномочия
+  head_title      String
+  head_fio        String
+  authority_base  String    // "Устава" | "Доверенности"
+  poa_number      String?
+  poa_date        String?
 
   // Банковские реквизиты
-  bank_name           String?
-  bank_bik            String?
-  bank_corr_account   String?
-  settlement_account  String?
+  bank_bik        String
+  bank_name       String
+  bank_ks         String
+  bank_rs         String
 
-  // Руководство
-  ceo_name       String?
-  ceo_position   String?
-  accountant_name String?
+  // Дополнительная информация
+  seal_note       String?
+  notes           String?
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -81,6 +107,8 @@ model Organization {
 
   @@index([userId])
   @@index([inn])
+  @@index([subject_type])
+  @@index([is_default])
 }
 
 // Документ
@@ -132,4 +160,76 @@ model TemplateConfig {
   updatedAt       DateTime  @updatedAt
 
   @@index([templateCode])
+}
+
+// Шаблоны документов (хранение в БД для CRUD в админке)
+model Template {
+  id               String    @id @default(uuid())
+  code             String    @unique
+  nameRu           String
+  shortDescription String
+  hasBodyChat      Boolean   @default(false)
+  category         String
+  tags             String[]
+  isEnabled        Boolean   @default(true)
+  version          String
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([code])
+  @@index([category])
+  @@index([isEnabled])
+}
+
+// История изменений доступа пользователей
+model AccessHistory {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  action          String    // "grant_or_extend" | "revoke" | "disable"
+  accessFrom      DateTime?
+  accessUntil     DateTime?
+  comment         String?   // Комментарий администратора
+  updatedBy       String    // Email администратора
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Refresh токены для обновления JWT
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Верификация email при смене
+model EmailVerification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail    String
+  code        String   // 6-digit code
+  token       String   @unique
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([code])
+  @@index([expiresAt])
 }
