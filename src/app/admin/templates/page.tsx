@@ -124,7 +124,7 @@ export default function AdminTemplatesPage() {
                     </Badge>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {template.tags.slice(0, 3).map((tagCode) => {
+                    {template.tags.slice(0, 3).map((tagCode: string) => {
                       const tag = getTagByCode(tagCode);
                       return (
                         <Badge key={tagCode} variant="secondary" className="text-xs">
