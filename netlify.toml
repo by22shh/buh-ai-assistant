@@ -1,5 +1,9 @@
 [build]
-  command = "bun run build"
+  # Explicitly install dependencies with npm to ensure devDependencies (like ESLint) are installed
+  # Then run build with bun (or npm if bun is not available)
+  command = "npm install && bun run build"
+  # Alternative: Use npm only if bun is not available on Netlify
+  # command = "npm install && npm run build"
   publish = ".next"
 
 [images]
