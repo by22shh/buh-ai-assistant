@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server';
 import { prisma } from './prisma';
-import { getTokenFromRequest, verifyToken } from './jwt';
+import { getTokenFromRequest, verifyToken, REFRESH_TOKEN_TTL_MS } from './jwt';
 import crypto from 'crypto';
 
 /**
  * Получить текущего пользователя из JWT токена
+ * ВАЖНО: Проверяет существование пользователя в БД для защиты от:
+ * - Использования токенов удаленных пользователей
+ * - Изменения роли/доступа после выдачи токена
  */
 export async function getCurrentUser(request: NextRequest) {
   const token = getTokenFromRequest(request);
@@ -18,6 +21,8 @@ export async function getCurrentUser(request: NextRequest) {
     return null;
   }
 
+  // БЕЗОПАСНОСТЬ: Проверяем существование пользователя в БД
+  // Токен может быть валидным, но пользователь удален или заблокирован
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     select: {
@@ -30,6 +35,8 @@ export async function getCurrentUser(request: NextRequest) {
       phone: true,
       position: true,
       company: true,
+      accessFrom: true,
+      accessUntil: true,
       createdAt: true,
       updatedAt: true,
       demoStatus: {
@@ -42,6 +49,24 @@ export async function getCurrentUser(request: NextRequest) {
       },
     },
   });
+
+  // ВАЖНО: Если пользователь не найден - токен считается недействительным
+  // Это защищает от использования токенов удаленных аккаунтов
+  if (!user) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('⚠️ Valid JWT but user not found in DB:', payload.userId);
+    }
+    return null;
+  }
+
+  // БЕЗОПАСНОСТЬ: Проверяем изменение роли
+  // Если роль изменилась после выдачи токена - требуем повторный логин
+  if (user.role !== payload.role) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('⚠️ User role changed, token outdated:', payload.userId);
+    }
+    return null;
+  }
 
   return user;
 }
@@ -128,18 +153,68 @@ export async function incrementDocumentUsage(userId: string) {
 }
 
 /**
- * Проверить временный доступ пользователя
+ * ЦЕНТРАЛИЗОВАННАЯ проверка временного доступа пользователя
+ * Используется во всех API routes для единообразной логики
+ */
+export function checkUserAccessPeriod(user: {
+  role: string;
+  accessFrom: Date | null;
+  accessUntil: Date | null;
+}): { 
+  hasAccess: boolean; 
+  status: 'active' | 'expired' | 'not_granted' | 'not_started';
+  message?: string;
+} {
+  // Админы имеют неограниченный доступ
+  if (user.role === 'admin') {
+    return { hasAccess: true, status: 'active' };
+  }
+
+  const now = new Date();
+  
+  // Если доступ не назначен - работает демо-режим (проверяется отдельно)
+  if (!user.accessFrom || !user.accessUntil) {
+    return { hasAccess: true, status: 'active', message: 'Демо-режим' };
+  }
+  
+  // Если доступ еще не начался
+  if (now < user.accessFrom) {
+    return { 
+      hasAccess: false, 
+      status: 'not_started', 
+      message: `Доступ начнется ${user.accessFrom.toLocaleDateString('ru-RU')}` 
+    };
+  }
+  
+  // Если доступ истек
+  if (now > user.accessUntil) {
+    return { 
+      hasAccess: false, 
+      status: 'expired', 
+      message: `Доступ истек ${user.accessUntil.toLocaleDateString('ru-RU')}` 
+    };
+  }
+  
+  // Доступ активен
+  return { hasAccess: true, status: 'active' };
+}
+
+/**
+ * УСТАРЕВШАЯ функция - использовать checkUserAccessPeriod() вместе с getCurrentUser()
+ * Оставлена для обратной совместимости
+ * @deprecated Используйте checkUserAccessPeriod() с объектом user
  */
 export async function checkAccessPeriod(userId: string): Promise<{ 
   hasAccess: boolean; 
   status: 'active' | 'expired' | 'not_granted' | 'not_started';
   message?: string;
 }> {
-  // Сначала проверяем роль
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       role: true,
+      accessFrom: true,
+      accessUntil: true,
     },
   });
 
@@ -147,51 +222,7 @@ export async function checkAccessPeriod(userId: string): Promise<{
     return { hasAccess: false, status: 'not_granted', message: 'Пользователь не найден' };
   }
 
-  // Админы имеют неограниченный доступ
-  if (user.role === 'admin') {
-    return { hasAccess: true, status: 'active' };
-  }
-
-  // Получаем данные доступа отдельным запросом
-  const accessData = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      accessFrom: true,
-      accessUntil: true,
-    },
-  });
-
-  if (!accessData) {
-    return { hasAccess: false, status: 'not_granted', message: 'Данные доступа не найдены' };
-  }
-
-  const now = new Date();
-  
-  // Если доступ не назначен
-  if (!accessData.accessFrom || !accessData.accessUntil) {
-    return { hasAccess: false, status: 'not_granted', message: 'Доступ не предоставлен' };
-  }
-  
-  // Если доступ еще не начался
-  if (now < accessData.accessFrom) {
-    return { 
-      hasAccess: false, 
-      status: 'not_started', 
-      message: `Доступ начнется ${accessData.accessFrom.toLocaleDateString('ru-RU')}` 
-    };
-  }
-  
-  // Если доступ истек
-  if (now > accessData.accessUntil) {
-    return { 
-      hasAccess: false, 
-      status: 'expired', 
-      message: `Доступ истек ${accessData.accessUntil.toLocaleDateString('ru-RU')}` 
-    };
-  }
-  
-  // Доступ активен
-  return { hasAccess: true, status: 'active' };
+  return checkUserAccessPeriod(user);
 }
 
 /**
@@ -318,8 +349,7 @@ export async function getUsersForAccessManagement() {
  * Создать refresh токен в БД
  */
 export async function createRefreshTokenRecord(userId: string, token: string) {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 дней
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 
   return await prisma.refreshToken.create({
     data: {

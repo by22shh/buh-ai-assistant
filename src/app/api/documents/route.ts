@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, checkDemoLimit, checkAccessPeriod, incrementDocumentUsage } from '@/lib/auth-utils';
+import { getCurrentUser, checkDemoLimit, checkUserAccessPeriod, incrementDocumentUsage } from '@/lib/auth-utils';
 import { createDocumentSchema } from '@/lib/schemas/document';
 import { z } from 'zod';
 
@@ -69,13 +69,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Проверяем доступ (если пользователь не админ)
+    let isUsingDemo = false;
     if (user.role !== 'admin') {
-      // Сначала проверяем временный доступ по времени
-      const accessCheck = await checkAccessPeriod(user.id);
+      // Используем checkUserAccessPeriod() вместо checkAccessPeriod() - избегаем лишнего DB запроса
+      const accessCheck = checkUserAccessPeriod(user);
       
       if (!accessCheck.hasAccess) {
         // Если нет доступа по времени - проверяем демо-лимит
         if (accessCheck.status === 'not_granted') {
+          isUsingDemo = true; // Запоминаем для увеличения счетчика позже
           const hasDemoLimit = await checkDemoLimit(user.id);
           if (!hasDemoLimit) {
             return NextResponse.json(
@@ -136,13 +138,8 @@ export async function POST(request: NextRequest) {
 
     // Увеличиваем счётчик использованных документов ТОЛЬКО для demo пользователей
     // (у кого нет временного платного доступа)
-    if (user.role !== 'admin') {
-      const accessCheck = await checkAccessPeriod(user.id);
-      
-      // Увеличиваем счётчик только если пользователь в demo режиме (нет платного доступа)
-      if (accessCheck.status === 'not_granted') {
-        await incrementDocumentUsage(user.id);
-      }
+    if (user.role !== 'admin' && isUsingDemo) {
+      await incrementDocumentUsage(user.id);
     }
 
     return NextResponse.json(document, { status: 201 });

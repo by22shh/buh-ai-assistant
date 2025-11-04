@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRefreshTokenFromRequest, verifyRefreshToken, createToken, setTokenCookie } from '@/lib/jwt';
+import { getRefreshTokenFromRequest, verifyRefreshToken, createToken, createRefreshToken, setTokenCookie, setRefreshTokenCookie } from '@/lib/jwt';
 import { validateRefreshToken, revokeRefreshToken, createRefreshTokenRecord } from '@/lib/auth-utils';
-import crypto from 'crypto';
+import { generateCsrfToken, setCsrfTokenCookie } from '@/lib/csrf';
+import { logSecurityEventFromRequest } from '@/lib/security-log';
 
 /**
  * POST /api/auth/refresh
@@ -13,6 +14,11 @@ export async function POST(request: NextRequest) {
     const refreshTokenValue = getRefreshTokenFromRequest(request);
 
     if (!refreshTokenValue) {
+      // БЕЗОПАСНОСТЬ: Логируем failed refresh attempt
+      await logSecurityEventFromRequest(request, 'token_refresh_failed', {
+        metadata: { reason: 'no_refresh_token' },
+      });
+      
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Refresh token not provided' },
         { status: 401 }
@@ -22,6 +28,11 @@ export async function POST(request: NextRequest) {
     // Проверяем JWT подпись refresh токена
     const payload = verifyRefreshToken(refreshTokenValue);
     if (!payload) {
+      // БЕЗОПАСНОСТЬ: Логируем failed refresh attempt
+      await logSecurityEventFromRequest(request, 'token_refresh_failed', {
+        metadata: { reason: 'invalid_jwt_signature' },
+      });
+      
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Invalid or expired refresh token' },
         { status: 401 }
@@ -31,6 +42,13 @@ export async function POST(request: NextRequest) {
     // Проверяем refresh токен в БД
     const refreshTokenRecord = await validateRefreshToken(refreshTokenValue);
     if (!refreshTokenRecord) {
+      // БЕЗОПАСНОСТЬ: Логируем failed refresh attempt
+      await logSecurityEventFromRequest(request, 'token_refresh_failed', {
+        userId: payload.userId,
+        email: payload.email,
+        metadata: { reason: 'token_not_found_or_revoked' },
+      });
+      
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Refresh token not found or revoked' },
         { status: 401 }
@@ -44,6 +62,14 @@ export async function POST(request: NextRequest) {
     if (user.email !== payload.email || user.role !== payload.role) {
       // Отзываем все токены пользователя, если данные изменились
       await revokeRefreshToken(refreshTokenValue);
+      
+      // БЕЗОПАСНОСТЬ: Логируем failed refresh из-за изменения данных
+      await logSecurityEventFromRequest(request, 'token_refresh_failed', {
+        userId: user.id,
+        email: user.email,
+        metadata: { reason: 'user_data_changed' },
+      });
+      
       return NextResponse.json(
         { error: 'Unauthorized', message: 'User data changed, please login again' },
         { status: 401 }
@@ -57,34 +83,42 @@ export async function POST(request: NextRequest) {
       role: user.role,
     });
 
-    // Rotate refresh token (включено по умолчанию для безопасности)
-    // Можно отключить через ROTATE_REFRESH_TOKENS=false (не рекомендуется)
-    const shouldRotateRefresh = process.env.ROTATE_REFRESH_TOKENS !== 'false';
+    // БЕЗОПАСНОСТЬ: Refresh token rotation ВСЕГДА включена для защиты от replay attacks
+    // Отзываем старый refresh токен
+    await revokeRefreshToken(refreshTokenValue);
+
+    // Создаём новый refresh токен
+    const newRefreshTokenValue = createRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    await createRefreshTokenRecord(user.id, newRefreshTokenValue);
+    
+    // БЕЗОПАСНОСТЬ: Логируем successful token refresh
+    await logSecurityEventFromRequest(request, 'token_refresh', {
+      userId: user.id,
+      email: user.email,
+    });
+    
+    // Генерируем новый CSRF токен при refresh
+    const csrfToken = generateCsrfToken();
     
     let response = NextResponse.json({
       success: true,
       message: 'Token refreshed',
+      csrfToken, // Отдаём новый CSRF token
     });
 
     // Устанавливаем новый access токен
     response = setTokenCookie(response, newAccessToken);
 
-    // Ротируем refresh токен (по умолчанию включено)
-    if (shouldRotateRefresh) {
-      // Отзываем старый refresh токен
-      await revokeRefreshToken(refreshTokenValue);
-
-      // Создаём новый refresh токен
-      const newRefreshTokenValue = createRefreshToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-      await createRefreshTokenRecord(user.id, newRefreshTokenValue);
-      const { setRefreshTokenCookie } = await import('@/lib/jwt');
-      response = setRefreshTokenCookie(response, newRefreshTokenValue);
-    }
+    // Устанавливаем новый refresh токен
+    response = setRefreshTokenCookie(response, newRefreshTokenValue);
+    
+    // Устанавливаем новый CSRF токен
+    response = setCsrfTokenCookie(response, csrfToken);
 
     return response;
 

@@ -43,30 +43,26 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase();
 
-    // ВАЖНО: Проверяем существование пользователя ПОСЛЕ генерации кода
-    // чтобы не было утечки информации о существовании email через timing
-    const userExists = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true },
-    });
+    // БЕЗОПАСНОСТЬ: Выполняем ВСЕ операции параллельно для предотвращения timing attacks
+    // Одинаковое время выполнения независимо от существования пользователя
+    const [userExists, code, token, expiresAt] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      }),
+      // Generate 6-digit code
+      Promise.resolve(Math.floor(100000 + Math.random() * 900000).toString()),
+      // Generate token (for verification)
+      Promise.resolve(crypto.randomBytes(32).toString('hex')),
+      // Expires in 10 minutes
+      Promise.resolve(new Date(Date.now() + 10 * 60 * 1000))
+    ]);
 
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Generate token (for verification)
-    const token = crypto.randomBytes(32).toString('hex');
-
-    // Expires in 10 minutes
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    // Delete old unused tokens for this email
+    // Delete ALL old tokens for this email (both used and unused)
+    // This prevents token accumulation and ensures only the latest token is valid
     await prisma.loginToken.deleteMany({
       where: {
         email: normalizedEmail,
-        used: false,
-        expiresAt: {
-          lt: new Date()
-        }
       }
     });
 

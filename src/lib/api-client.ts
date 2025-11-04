@@ -2,6 +2,68 @@
 let isRefreshing = false;
 let refreshPromise: Promise<Response> | null = null;
 
+// CSRF token для защиты от CSRF атак
+let csrfToken: string | null = null;
+
+/**
+ * Получить CSRF token из cookie
+ */
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'csrf-token') {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Инициализировать CSRF token из cookie или sessionStorage при загрузке
+ */
+function initializeCsrfToken(): void {
+  if (typeof document === 'undefined') return;
+  
+  // Сначала проверяем sessionStorage (для свежих токенов после логина)
+  if (typeof sessionStorage !== 'undefined') {
+    const tempToken = sessionStorage.getItem('csrf-token-temp');
+    if (tempToken) {
+      csrfToken = tempToken;
+      sessionStorage.removeItem('csrf-token-temp'); // Используем только один раз
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 CSRF token initialized from sessionStorage');
+      }
+      return;
+    }
+  }
+  
+  // Затем проверяем cookie
+  const token = getCsrfToken();
+  if (token) {
+    csrfToken = token;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔐 CSRF token initialized from cookie');
+    }
+  }
+}
+
+// Инициализируем CSRF token при загрузке модуля
+if (typeof document !== 'undefined') {
+  initializeCsrfToken();
+}
+
+/**
+ * Сохранить CSRF token из response
+ */
+function saveCsrfTokenFromResponse(data: any) {
+  if (data && data.csrfToken) {
+    csrfToken = data.csrfToken;
+  }
+}
+
 /**
  * Попытка обновить access token через refresh token
  */
@@ -30,23 +92,19 @@ async function attemptTokenRefresh(): Promise<boolean> {
     const response = await refreshPromise;
     const success = response.ok;
     
-    if (!success) {
-      // Refresh не удался, возможно токен истек или отозван
-      isRefreshing = false;
-      refreshPromise = null;
+    if (success) {
+      // Сохраняем новый CSRF token из response
+      const data = await response.json();
+      saveCsrfTokenFromResponse(data);
     }
     
     return success;
   } catch (error) {
-    isRefreshing = false;
-    refreshPromise = null;
     return false;
   } finally {
-    // Сбрасываем флаг после небольшой задержки, чтобы избежать race conditions
-    setTimeout(() => {
-      isRefreshing = false;
-      refreshPromise = null;
-    }, 1000);
+    // Сбрасываем флаги после завершения
+    isRefreshing = false;
+    refreshPromise = null;
   }
 }
 
@@ -60,12 +118,22 @@ export async function apiClient<T = any>(
   options?: RequestInit,
   isRetry = false // Флаг для предотвращения бесконечных ретраев
 ): Promise<T> {
+  // Получаем CSRF token для state-changing операций
+  // Приоритет: in-memory > cookie (для свежих токенов)
+  const token = csrfToken || getCsrfToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options?.headers as Record<string, string>,
+  };
+  
+  // Добавляем CSRF token для POST/PUT/DELETE/PATCH
+  if (token && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options?.method || 'GET')) {
+    headers['x-csrf-token'] = token;
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
     credentials: 'include', // Важно: отправляем cookies
   });
 
@@ -107,7 +175,13 @@ export async function apiClient<T = any>(
     throw new Error(error.error || error.message || 'API request failed');
   }
 
-  return response.json();
+  const data = await response.json();
+  
+  // ВАЖНО: Сохраняем CSRF token из response СРАЗУ, до возврата данных
+  // Это гарантирует, что токен доступен для следующих запросов
+  saveCsrfTokenFromResponse(data);
+  
+  return data;
 }
 
 /**

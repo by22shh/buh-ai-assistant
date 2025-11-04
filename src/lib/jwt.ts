@@ -1,15 +1,95 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Проверяем наличие обязательных переменных окружения
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required. Generate one with: openssl rand -base64 32');
+const isProduction = process.env.NODE_ENV === 'production';
+
+function resolveJwtSecret(envKey: 'JWT_SECRET' | 'JWT_REFRESH_SECRET'): string {
+  const envValue = process.env[envKey];
+
+  if (envValue && envValue.trim().length > 0) {
+    return envValue;
+  }
+
+  if (isProduction) {
+    throw new Error(
+      `${envKey} environment variable is required. Generate one with: openssl rand -base64 32`
+    );
+  }
+
+  const generatedSecret = crypto.randomBytes(32).toString('hex');
+  console.warn(
+    `⚠️ ${envKey} не задан. Сгенерирован временный dev secret. Не используйте его в production!`
+  );
+  process.env[envKey] = generatedSecret;
+  return generatedSecret;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const jwtSecret = resolveJwtSecret('JWT_SECRET');
+let jwtRefreshSecret = resolveJwtSecret('JWT_REFRESH_SECRET');
+
+if (jwtSecret === jwtRefreshSecret) {
+  const message = 'JWT_REFRESH_SECRET must be different from JWT_SECRET. Generate with: openssl rand -base64 32';
+
+  if (isProduction) {
+    throw new Error(message);
+  }
+
+  console.warn(`⚠️ ${message}. Сгенерирован новый dev refresh secret.`);
+  jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
+  process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
+}
+
+const JWT_SECRET = jwtSecret;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m'; // Access token - короткий TTL
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET + '_refresh';
+const JWT_REFRESH_SECRET = jwtRefreshSecret;
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d'; // Refresh token - длинный TTL
+
+const DEFAULT_REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function parseDurationToMs(value: string): number | null {
+  const trimmed = value.trim().toLowerCase();
+  const match = trimmed.match(/^(\d+)(ms|s|m|h|d|w)?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+  const unit = match[2] ?? 's';
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+
+  const unitMap: Record<string, number> = {
+    ms: 1,
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000,
+  };
+
+  const multiplier = unitMap[unit];
+
+  if (!multiplier) {
+    return null;
+  }
+
+  return amount * multiplier;
+}
+
+const parsedRefreshTtlMs = parseDurationToMs(JWT_REFRESH_EXPIRES_IN);
+
+export const REFRESH_TOKEN_TTL_MS = parsedRefreshTtlMs ?? DEFAULT_REFRESH_TTL_MS;
+export const REFRESH_TOKEN_MAX_AGE_SECONDS = Math.max(1, Math.floor(REFRESH_TOKEN_TTL_MS / 1000));
+
+if (parsedRefreshTtlMs === null && process.env.NODE_ENV !== 'production') {
+  console.warn(
+    `⚠️ Unable to parse JWT_REFRESH_EXPIRES_IN="${JWT_REFRESH_EXPIRES_IN}". Falling back to 7d.`
+  );
+}
 
 export interface JWTPayload {
   userId: string;
@@ -75,7 +155,7 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction, // HTTPS только на production
-    sameSite: 'lax' as const, // Изменено с 'strict' на 'lax' для корректной работы редиректов
+    sameSite: 'lax' as const, // CSRF protection + совместимость с внешними редиректами
     maxAge: 60 * 15, // 15 минут для access token
     path: '/',
   };
@@ -92,6 +172,7 @@ export function setTokenCookie(response: NextResponse, token: string): NextRespo
 export function clearTokenCookie(response: NextResponse): NextResponse {
   response.cookies.delete('token');
   response.cookies.delete('refreshToken');
+  response.cookies.delete('csrf-token');
   return response;
 }
 
@@ -151,8 +232,8 @@ export function setRefreshTokenCookie(response: NextResponse, token: string): Ne
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax' as const, // Изменено с 'strict' на 'lax' для корректной работы редиректов
-    maxAge: 60 * 60 * 24 * 7, // 7 дней
+    sameSite: 'lax' as const, // CSRF protection + совместимость с внешними редиректами
+    maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
     path: '/',
   };
 

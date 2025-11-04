@@ -233,3 +233,20 @@ model EmailVerification {
   @@index([code])
   @@index([expiresAt])
 }
+
+// Security Events Log для аудита безопасности
+model SecurityLog {
+  id          String   @id @default(uuid())
+  userId      String?  // Может быть null для failed login attempts
+  event       String   // 'login_success', 'login_failed', 'logout', 'token_refresh', etc.
+  ip          String
+  userAgent   String?
+  email       String?  // Email для login attempts
+  metadata    Json?    // Дополнительные данные (reason, details, etc.)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([event])
+  @@index([ip])
+  @@index([createdAt])
+}
