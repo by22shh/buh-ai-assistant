@@ -10,6 +10,9 @@ export interface User {
   phone?: string;
   position?: string;
   company?: string;
+  accessFrom?: string | Date | null;
+  accessUntil?: string | Date | null;
+  accessComment?: string | null;
   createdAt: string | Date;
   updatedAt: string | Date;
   

@@ -43,7 +43,7 @@ export async function logSecurityEvent(entry: SecurityLogEntry): Promise<void> {
         ip: entry.ip,
         userAgent: entry.userAgent || null,
         email: entry.email || null,
-        metadata: entry.metadata || null,
+        metadata: entry.metadata ?? undefined,
       },
     });
   } catch (error) {

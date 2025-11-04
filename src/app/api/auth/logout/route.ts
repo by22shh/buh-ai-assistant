@@ -4,6 +4,8 @@ import { revokeRefreshToken, revokeAllUserRefreshTokens, getCurrentUser, validat
 import { logSecurityEventFromRequest } from '@/lib/security-log';
 import { validateCsrfToken } from '@/lib/csrf';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/logout
  * Выход из системы (удаление токенов и отзыв refresh токенов)

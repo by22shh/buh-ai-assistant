@@ -4,6 +4,8 @@ import { validateRefreshToken, revokeRefreshToken, createRefreshTokenRecord } fr
 import { generateCsrfToken, setCsrfTokenCookie } from '@/lib/csrf';
 import { logSecurityEventFromRequest } from '@/lib/security-log';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/refresh
  * Обновление access токена с помощью refresh токена
@@ -105,20 +107,20 @@ export async function POST(request: NextRequest) {
     // Генерируем новый CSRF токен при refresh
     const csrfToken = generateCsrfToken();
     
-    let response = NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Token refreshed',
       csrfToken, // Отдаём новый CSRF token
     });
 
     // Устанавливаем новый access токен
-    response = setTokenCookie(response, newAccessToken);
+    setTokenCookie(response, newAccessToken);
 
     // Устанавливаем новый refresh токен
-    response = setRefreshTokenCookie(response, newRefreshTokenValue);
+    setRefreshTokenCookie(response, newRefreshTokenValue);
     
     // Устанавливаем новый CSRF токен
-    response = setCsrfTokenCookie(response, csrfToken);
+    setCsrfTokenCookie(response, csrfToken);
 
     return response;
 

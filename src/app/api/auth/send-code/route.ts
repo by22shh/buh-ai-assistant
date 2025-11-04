@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { checkAuthRateLimit, getIP } from '@/lib/rate-limit';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/send-code
  * Отправка 6-значного кода на email для входа

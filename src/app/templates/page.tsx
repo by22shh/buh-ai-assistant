@@ -67,7 +67,7 @@ export default function TemplatesPage() {
       const query = searchQuery.toLowerCase();
       const matchesName = template.nameRu.toLowerCase().includes(query);
       const matchesDesc = template.shortDescription.toLowerCase().includes(query);
-      const matchesTags = template.tags.some((tagCode) => {
+      const matchesTags = template.tags.some((tagCode: string) => {
         const tag = getTagByCode(tagCode);
         return tag?.nameRu.toLowerCase().includes(query);
       });
@@ -98,7 +98,7 @@ export default function TemplatesPage() {
   });
 
   const handleTemplateSelect = (templateCode: string) => {
-    const template = templates.find((t) => t.code === templateCode);
+    const template = templatesFromDb.find((t) => t.code === templateCode);
     if (!template) return;
 
     // Проверка доступа: сначала временный доступ, затем демо-лимит
@@ -272,7 +272,7 @@ export default function TemplatesPage() {
                         <Badge variant="outline">{category?.nameRu}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {template.tags.slice(0, 5).map((tagCode) => {
+                        {template.tags.slice(0, 5).map((tagCode: string) => {
                           const tag = getTagByCode(tagCode);
                           return (
                             <Badge key={tagCode} variant="secondary" className="text-xs">

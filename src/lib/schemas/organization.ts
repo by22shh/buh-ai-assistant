@@ -147,25 +147,29 @@ export const createOrganizationSchema = z.object({
 
   bank_ks: z.string()
     .regex(/^\d{20}$/, 'Корреспондентский счёт должен содержать 20 цифр')
-    .refine(
-      (val, ctx) => {
-        const bik = ctx.parent.bank_bik;
-        if (!bik) return false;
-        return validateBankKSExtended(val, bik);
-      },
-      { message: 'Неверный корреспондентский счёт или контрольная сумма (должен начинаться с 301 и соответствовать БИК)' }
-    ),
+    .superRefine((val, ctx) => {
+      const parent = (ctx as any).parent as { bank_bik?: string } | undefined;
+      const bik = parent?.bank_bik;
+      if (!bik || !validateBankKSExtended(val, bik)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Неверный корреспондентский счёт или контрольная сумма (должен начинаться с 301 и соответствовать БИК)',
+        });
+      }
+    }),
 
   bank_rs: z.string()
     .regex(/^\d{20}$/, 'Расчётный счёт должен содержать 20 цифр')
-    .refine(
-      (val, ctx) => {
-        const bik = ctx.parent.bank_bik;
-        if (!bik) return false;
-        return validateBankRSExtended(val, bik);
-      },
-      { message: 'Неверный расчётный счёт или контрольная сумма (должен соответствовать БИК)' }
-    ),
+    .superRefine((val, ctx) => {
+      const parent = (ctx as any).parent as { bank_bik?: string } | undefined;
+      const bik = parent?.bank_bik;
+      if (!bik || !validateBankRSExtended(val, bik)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Неверный расчётный счёт или контрольная сумма (должен соответствовать БИК)',
+        });
+      }
+    }),
 
   // Дополнительная информация
   seal_note: z.string()

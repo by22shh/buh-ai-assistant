@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTokenFromRequest, verifyToken } from './lib/jwt';
+import { jwtVerify, JWTPayload } from 'jose';
 import { checkApiRateLimit, getIP } from './lib/rate-limit';
 import { shouldCheckCsrf, validateCsrfToken } from './lib/csrf';
 import { logSecurityEventFromRequest } from './lib/security-log';
@@ -16,6 +16,46 @@ const PUBLIC_PATHS = [
 const ADMIN_PATHS = [
   '/api/admin/',
 ];
+
+type EdgeTokenPayload = JWTPayload & {
+  userId?: string;
+  email?: string;
+  role?: string;
+};
+
+const jwtSecret = process.env.JWT_SECRET;
+const encodedSecret = jwtSecret ? new TextEncoder().encode(jwtSecret) : null;
+
+async function verifyTokenEdge(token: string): Promise<EdgeTokenPayload | null> {
+  if (!encodedSecret) {
+    console.error('JWT_SECRET is not configured for middleware environment');
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, encodedSecret);
+    return payload as EdgeTokenPayload;
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('❌ Middleware: Token verification failed', error);
+    }
+    return null;
+  }
+}
+
+function getTokenFromRequest(request: NextRequest): string | null {
+  const cookieToken = request.cookies.get('token')?.value;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+
+  return null;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -89,9 +129,9 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  const payload = verifyToken(token);
+  const payload = await verifyTokenEdge(token);
 
-  if (!payload) {
+  if (!payload || !payload.userId || !payload.email || !payload.role) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('❌ Middleware: Invalid or expired token');
     }

@@ -1,11 +1,21 @@
-import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Генерация CSRF токена
  */
 export function generateCsrfToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const array = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(array);
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Fallback для окружений без Web Crypto (не должен использоваться в production)
+  let token = '';
+  for (let i = 0; i < 64; i++) {
+    token += Math.floor(Math.random() * 16).toString(16);
+  }
+  return token;
 }
 
 /**

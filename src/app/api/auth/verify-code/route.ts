@@ -6,6 +6,8 @@ import { checkAuthRateLimit, getIP } from '@/lib/rate-limit';
 import { generateCsrfToken, setCsrfTokenCookie } from '@/lib/csrf';
 import { logSecurityEventFromRequest } from '@/lib/security-log';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/verify-code
  * Проверка 6-значного кода и выдача JWT токена
