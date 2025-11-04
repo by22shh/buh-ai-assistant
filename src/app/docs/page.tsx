@@ -32,6 +32,20 @@ export default function DocumentsArchivePage() {
   const [filterOrg, setFilterOrg] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"date" | "name">("date");
 
+  // Load templates from DB for filters and labels
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const list = await res.json();
+          setDbTemplates(list);
+        }
+      } catch (e) {}
+    }
+    loadTemplates();
+  }, []);
+
   // Redirect if not logged in
   if (!userLoading && !user) {
     router.push("/auth/login");
@@ -104,20 +118,6 @@ export default function DocumentsArchivePage() {
       </div>
     );
   }
-
-  // Load templates from DB for filters and labels
-  useEffect(() => {
-    async function loadTemplates() {
-      try {
-        const res = await fetch('/api/templates');
-        if (res.ok) {
-          const list = await res.json();
-          setDbTemplates(list);
-        }
-      } catch (e) {}
-    }
-    loadTemplates();
-  }, []);
 
   // Фильтрация и сортировка
   const documents = allDocuments
