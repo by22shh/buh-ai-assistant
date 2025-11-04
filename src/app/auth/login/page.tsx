@@ -86,10 +86,11 @@ export default function LoginPage() {
     }
 
     try {
+      const payload = token ? { email, code, token } : { email, code };
       const response = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify(payload),
         credentials: 'include', // ВАЖНО: включаем cookies
       });
 
@@ -97,6 +98,12 @@ export default function LoginPage() {
 
       if (!data.success) {
         throw new Error(data.error || 'Неверный код');
+      }
+
+      // ВАЖНО: Сохраняем CSRF token в sessionStorage для немедленного доступа
+      // Это предотвращает 403 ошибки при первом API запросе после логина
+      if (data.csrfToken && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('csrf-token-temp', data.csrfToken);
       }
 
       // Показываем успешное сообщение
@@ -111,7 +118,7 @@ export default function LoginPage() {
       console.log('✅ Login successful, redirecting to:', redirectUrl);
       
       // Используем router.push вместо window.location.href для более плавного перехода
-      // Но с небольшо задержкой для гарантии, что cookie сохранены
+      // Но с небольшой задержкой для гарантии, что cookie сохранены
       setTimeout(() => {
         router.push(redirectUrl);
       }, 100);
@@ -188,6 +195,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setStep("email");
                   setCode("");
+                  setToken("");
                   setError("");
                 }}
                 className="w-full"
