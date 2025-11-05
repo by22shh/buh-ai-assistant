@@ -88,7 +88,9 @@ export default function AdminTemplateViewPage({ params }: { params: Promise<{ co
   }
 
   const category = getCategoryByCode(template.category);
-  const templateTags = template.tags.map(tagCode => getTagByCode(tagCode)).filter(Boolean);
+  const templateTags = (template.tags as string[])
+    .map((tagCode: string) => getTagByCode(tagCode))
+    .filter(Boolean);
 
   return (
     <div className="min-h-screen bg-muted/50">
