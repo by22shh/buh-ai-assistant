@@ -15,6 +15,7 @@ import { type Template } from "@/lib/data/templates";
 import { categories } from "@/lib/data/categories";
 import { tags } from "@/lib/data/tags";
 import { toast } from "sonner";
+import { api } from "@/lib/api-client";
 
 export default function AdminTemplateCreatePage() {
   const router = useRouter();
@@ -86,32 +87,23 @@ export default function AdminTemplateCreatePage() {
 
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: formData.code,
-          nameRu: formData.nameRu,
-          shortDescription: formData.shortDescription,
-          hasBodyChat: formData.hasBodyChat,
-          category: formData.category,
-          tags: formData.tags || [],
-          isEnabled: formData.isEnabled,
-          version: formData.version || '1.0',
-        })
+      const created = await api.post(`/api/admin/templates`, {
+        code: formData.code,
+        nameRu: formData.nameRu,
+        shortDescription: formData.shortDescription,
+        hasBodyChat: formData.hasBodyChat,
+        category: formData.category,
+        tags: formData.tags || [],
+        isEnabled: formData.isEnabled,
+        version: formData.version || '1.0',
       });
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        toast.error(data?.error || 'Ошибка при создании шаблона');
-        return;
-      }
-
       toast.success("Шаблон успешно создан!");
-      router.push(`/admin/templates/${formData.code}`);
+      router.push(`/admin/templates/${created?.code ?? formData.code}`);
     } catch (error) {
       console.error('Error creating template:', error);
-      toast.error("Ошибка при создании шаблона");
+      const message = error instanceof Error ? error.message : "Ошибка при создании шаблона";
+      toast.error(message);
     } finally {
       setSaving(false);
     }

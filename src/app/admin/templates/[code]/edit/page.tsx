@@ -15,6 +15,7 @@ import { templates, getTemplateByCode, type Template } from "@/lib/data/template
 import { categories } from "@/lib/data/categories";
 import { tags } from "@/lib/data/tags";
 import { toast } from "sonner";
+import { api } from "@/lib/api-client";
 
 export default function AdminTemplateEditPage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
@@ -73,31 +74,22 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/admin/templates/${templateCode}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nameRu: formData.nameRu,
-          shortDescription: formData.shortDescription,
-          hasBodyChat: formData.hasBodyChat,
-          category: formData.category,
-          tags: formData.tags || [],
-          isEnabled: formData.isEnabled,
-          version: formData.version,
-        })
+      await api.put(`/api/admin/templates/${templateCode}`, {
+        nameRu: formData.nameRu,
+        shortDescription: formData.shortDescription,
+        hasBodyChat: formData.hasBodyChat,
+        category: formData.category,
+        tags: formData.tags || [],
+        isEnabled: formData.isEnabled,
+        version: formData.version,
       });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        toast.error(data?.error || 'Ошибка при сохранении изменений');
-        return;
-      }
 
       toast.success("Изменения сохранены!");
       router.push(`/admin/templates/${formData.code}`);
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.error("Ошибка при сохранении изменений");
+      const message = error instanceof Error ? error.message : "Ошибка при сохранении изменений";
+      toast.error(message);
     } finally {
       setSaving(false);
     }

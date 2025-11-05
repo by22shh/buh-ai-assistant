@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUser } from "@/hooks/useUser";
 import { toast } from "sonner";
+import { api } from "@/lib/api-client";
 
 interface AccessRecord {
   userId: string;
