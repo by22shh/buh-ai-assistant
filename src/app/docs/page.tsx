@@ -20,7 +20,7 @@ import { DocumentListSkeleton, DocumentTableRowSkeleton } from "@/components/ske
 
 export default function DocumentsArchivePage() {
   const router = useRouter();
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isLoading: userLoading, logout, isLoggingOut } = useUser();
   const { documents: allDocuments, isLoading: docsLoading, error: docsError } = useDocuments();
   const { organizations: userOrganizations, isLoading: orgsLoading } = useOrganizations();
   const [previewDocId, setPreviewDocId] = useState<string | null>(null);
@@ -31,6 +31,15 @@ export default function DocumentsArchivePage() {
   const [filterTemplate, setFilterTemplate] = useState<string>("all");
   const [filterOrg, setFilterOrg] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"date" | "name">("date");
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/auth/login");
+    } catch (error) {
+      // Ошибка уже показана через toast в hook
+    }
+  };
 
   // Load templates from DB for filters and labels
   useEffect(() => {
@@ -226,14 +235,12 @@ export default function DocumentsArchivePage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  router.push("/");
-                }}
+                onClick={handleLogout}
                 size="sm"
                 className="md:size-default"
+                disabled={isLoggingOut}
               >
-                Выход
+                {isLoggingOut ? "Выходим..." : "Выход"}
               </Button>
             </div>
           </div>

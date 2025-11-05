@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { api, resetAuthState } from '@/lib/api-client';
 import { toast } from 'sonner';
 
 import type { User } from '@/lib/types/user';
@@ -61,6 +61,20 @@ export function useUser() {
     },
   });
 
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await api.post('/api/auth/logout');
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      resetAuthState();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Не удалось выйти из аккаунта';
+      toast.error(message);
+    },
+  });
+
   // Production: login через auth flow, не нужен отдельный mutation
 
   return {
@@ -69,5 +83,7 @@ export function useUser() {
     error,
     updateProfile: updateMutation.mutateAsync,
     refresh: () => queryClient.invalidateQueries({ queryKey: ['user'] }),
+    logout: logoutMutation.mutateAsync,
+    isLoggingOut: logoutMutation.isPending,
   };
 }

@@ -103,6 +103,7 @@ export async function upsertUser(email: string, data?: {
     },
     update: {
       emailVerified: data?.emailVerified ?? true,
+      ...(isAdmin ? { role: 'admin' } : {}),
       ...data
     },
     include: {

@@ -18,7 +18,7 @@ import { profileFormSchema, type ProfileFormData } from "@/lib/schemas/profileFo
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isLoading, updateProfile } = useUser();
+  const { user, isLoading, updateProfile, logout, isLoggingOut } = useUser();
 
   const [editing, setEditing] = useState(false);
 
@@ -105,8 +105,12 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push("/");
+    try {
+      await logout();
+      router.push("/auth/login");
+    } catch (error) {
+      // Ошибка уже обработана в hook
+    }
   };
 
   return (
@@ -359,8 +363,9 @@ export default function ProfilePage() {
                 onClick={handleLogout}
                 variant="destructive"
                 className="w-full"
+                disabled={isLoggingOut}
               >
-                Выйти из аккаунта
+                {isLoggingOut ? "Выходим..." : "Выйти из аккаунта"}
               </Button>
             </CardContent>
           </Card>

@@ -33,7 +33,7 @@ interface AccessRecord {
 
 export default function AdminAccessPage() {
   const router = useRouter();
-  const { user, isLoading } = useUser();
+  const { user, isLoading, logout, isLoggingOut } = useUser();
   const [accessRecords, setAccessRecords] = useState<AccessRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -109,6 +109,15 @@ export default function AdminAccessPage() {
 
   if (!user || user.role !== "admin") return null;
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/auth/login");
+    } catch (error) {
+      // Ошибка уже показана
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen">
@@ -125,12 +134,10 @@ export default function AdminAccessPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    router.push("/");
-                  }}
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
                 >
-                  Выход
+                  {isLoggingOut ? "Выходим..." : "Выход"}
                 </Button>
               </div>
             </div>

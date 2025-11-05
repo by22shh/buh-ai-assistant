@@ -65,6 +65,25 @@ function saveCsrfTokenFromResponse(data: any) {
 }
 
 /**
+ * Сбросить локальное состояние аутентификации (используется при logout)
+ */
+export function resetAuthState() {
+  csrfToken = null;
+  isRefreshing = false;
+  refreshPromise = null;
+
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.removeItem('csrf-token-temp');
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Failed to clear temporary CSRF token from sessionStorage:', error);
+      }
+    }
+  }
+}
+
+/**
  * Попытка обновить access token через refresh token
  */
 async function attemptTokenRefresh(): Promise<boolean> {

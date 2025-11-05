@@ -14,7 +14,7 @@ import { useUser } from "@/hooks/useUser";
 export default function AdminTemplatesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const { user, isLoading } = useUser();
+  const { user, isLoading, logout, isLoggingOut } = useUser();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -54,6 +54,15 @@ export default function AdminTemplatesPage() {
     load();
   }, [user]);
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/auth/login");
+    } catch (error) {
+      // Ошибка обработана в hook
+    }
+  };
+
   const filteredTemplates = dbTemplates.filter((template) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -78,12 +87,10 @@ export default function AdminTemplatesPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  router.push("/");
-                }}
+                onClick={handleLogout}
+                disabled={isLoggingOut}
               >
-                Выход
+                {isLoggingOut ? "Выходим..." : "Выход"}
               </Button>
             </div>
           </div>
