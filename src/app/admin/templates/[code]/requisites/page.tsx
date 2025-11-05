@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { getTemplateByCode } from "@/lib/data/templates";
+// Не полагаемся на статический список шаблонов — загружаем из БД через API
 import { toast } from "sonner";
+import { api } from "@/lib/api-client";
 
 interface RequisiteField {
   name: string;
@@ -185,7 +186,8 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const resolvedParams = use(params);
   const templateCode = resolvedParams.code;
 
-  const [template, setTemplate] = useState(getTemplateByCode(templateCode));
+  const [template, setTemplate] = useState<any | null>(null);
+  const [templateNotFound, setTemplateNotFound] = useState(false);
   const [config, setConfig] = useState<TemplateRequisitesConfig | null>(null);
   const [fields, setFields] = useState<RequisiteField[]>(standardFields);
   const [loading, setLoading] = useState(false);
@@ -199,9 +201,27 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
 
   useEffect(() => {
     if (user && user.role === "admin" && templateCode) {
+      loadTemplate();
       loadRequisitesConfig();
     }
   }, [user, templateCode]);
+
+  const loadTemplate = async () => {
+    try {
+      const res = await fetch(`/api/admin/templates/${templateCode}`);
+      if (res.ok) {
+        const t = await res.json();
+        setTemplate(t);
+        setTemplateNotFound(false);
+      } else if (res.status === 404) {
+        setTemplate(null);
+        setTemplateNotFound(true);
+      }
+    } catch (e) {
+      // оставляем template как null, чтобы страница всё равно позволяла настраивать реквизиты
+      console.error('Error loading template info:', e);
+    }
+  };
 
   const loadRequisitesConfig = async () => {
     setLoading(true);
@@ -239,21 +259,14 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         }
       };
 
-      const response = await fetch(`/api/admin/template-configs/${templateCode}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка при сохранении конфигурации');
-      }
+      await api.put(`/api/admin/template-configs/${templateCode}`, configData);
 
       toast.success('Конфигурация реквизитов сохранена');
       await loadRequisitesConfig(); // Перезагружаем данные
     } catch (error) {
       console.error('Error saving requisites config:', error);
-      toast.error('Ошибка при сохранении конфигурации');
+      const message = error instanceof Error ? error.message : 'Ошибка при сохранении конфигурации';
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -296,7 +309,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
 
   if (!user || user.role !== "admin") return null;
 
-  if (!template) {
+  if (templateNotFound) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -323,7 +336,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Настройка реквизитов</h1>
-              <p className="text-muted-foreground">{template.nameRu}</p>
+              <p className="text-muted-foreground">{template?.nameRu || '—'}</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={saving}>
@@ -350,13 +363,13 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
             <CardContent>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <strong>Шаблон:</strong> {template.nameRu}
+                  <strong>Шаблон:</strong> {template?.nameRu || '—'}
                 </div>
                 <div>
                   <strong>Код:</strong> {templateCode}
                 </div>
                 <div>
-                  <strong>Версия:</strong> {template.version}
+                  <strong>Версия:</strong> {template?.version || '—'}
                 </div>
                 <div>
                   <strong>Последнее изменение:</strong> {config?.lastUpdated 
