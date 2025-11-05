@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { categories, getCategoryByCode } from "@/lib/data/categories";
 import { tags, getTagByCode } from "@/lib/data/tags";
 import { useUser } from "@/hooks/useUser";
+import { useDocuments } from "@/hooks/useDocuments";
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function TemplatesPage() {
   const [sortBy, setSortBy] = useState<"az" | "date">("az");
 
   const { user, isLoading } = useUser();
+  const { createDocument } = useDocuments();
 
   // Проверка авторизации
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function TemplatesPage() {
     return 0; // По дате обновления (пока не реализовано)
   });
 
-  const handleTemplateSelect = (templateCode: string) => {
+  const handleTemplateSelect = async (templateCode: string) => {
     const template = templatesFromDb.find((t) => t.code === templateCode);
     if (!template) return;
 
@@ -115,13 +117,29 @@ export default function TemplatesPage() {
       }
     }
 
-    // Создаем новый документ
-    const docId = `doc_${Date.now()}`;
+    // Создаём документ в БД и переходим по реальному id
+    try {
+      const created = await createDocument({
+        templateCode: template.code,
+        templateVersion: template.version,
+        title: template.nameRu,
+        hasBodyChat: !!template.hasBodyChat,
+      } as any);
 
-    if (template.hasBodyChat) {
-      router.push(`/doc/${docId}/body?template=${templateCode}`);
-    } else {
-      router.push(`/doc/${docId}/requisites?template=${templateCode}`);
+      const newId = (created as any)?.id;
+      if (!newId) {
+        // Если по какой-то причине id не вернулся, уходим в архив
+        router.push('/docs');
+        return;
+      }
+
+      if (template.hasBodyChat) {
+        router.push(`/doc/${newId}/body?template=${templateCode}`);
+      } else {
+        router.push(`/doc/${newId}/requisites?template=${templateCode}`);
+      }
+    } catch (e) {
+      // Ошибка уже показана хуком
     }
   };
 
