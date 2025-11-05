@@ -160,6 +160,38 @@ export async function apiClient<T = any>(
     // Пробуем прочитать тело ошибки, чтобы понять причину (CSRF/доступ/авторизация)
     const errorBody = await response.json().catch(() => ({ error: 'Unknown error' }));
 
+    // Специальное форматирование ошибок валидации (Zod)
+    const formatValidationError = (body: any): string | null => {
+      // Бэкенд часто возвращает: { error: 'Validation error', details: [{ field, message }] }
+      if (body && Array.isArray(body.details) && body.details.length > 0) {
+        const messages = body.details
+          .map((d: any) => {
+            const field = typeof d?.field === 'string' ? d.field : undefined;
+            const msg = typeof d?.message === 'string' ? d.message : undefined;
+            if (field && msg) return `${field}: ${msg}`;
+            return msg || field || null;
+          })
+          .filter(Boolean)
+          .join('; ');
+        return messages ? `Ошибка валидации: ${messages}` : 'Ошибка валидации';
+      }
+
+      // Некоторые маршруты Zod могут возвращать issues
+      if (body && Array.isArray(body.issues) && body.issues.length > 0) {
+        const messages = body.issues
+          .map((i: any) => {
+            const path = Array.isArray(i?.path) ? i.path.join('.') : undefined;
+            const msg = typeof i?.message === 'string' ? i.message : undefined;
+            if (path && msg) return `${path}: ${msg}`;
+            return msg || path || null;
+          })
+          .filter(Boolean)
+          .join('; ');
+        return messages ? `Ошибка валидации: ${messages}` : 'Ошибка валидации';
+      }
+      return null;
+    };
+
     // 401 → попытаться рефрешнуть токен и повторить один раз
     if (typeof window !== 'undefined' && response.status === 401 && !isRetry) {
       const refreshSuccess = await attemptTokenRefresh();
@@ -199,7 +231,9 @@ export async function apiClient<T = any>(
       }
     }
 
-    throw new Error(errorBody.error || errorBody.message || 'API request failed');
+    const validationMsg = formatValidationError(errorBody);
+    const generic = errorBody.error || errorBody.message || 'API request failed';
+    throw new Error(validationMsg || generic);
   }
 
   const data = await response.json();
