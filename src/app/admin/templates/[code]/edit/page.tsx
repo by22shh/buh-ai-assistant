@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { templates, getTemplateByCode, type Template } from "@/lib/data/templates";
+import { type Template } from "@/lib/data/templates";
 import { categories } from "@/lib/data/categories";
 import { tags } from "@/lib/data/tags";
 import { toast } from "sonner";
@@ -23,7 +23,9 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
   const resolvedParams = use(params);
   const templateCode = resolvedParams.code;
 
-  const [originalTemplate, setOriginalTemplate] = useState(getTemplateByCode(templateCode));
+  const [originalTemplate, setOriginalTemplate] = useState<Template | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -50,17 +52,26 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
     }
   }, [originalTemplate]);
 
-  // Если шаблон уже создан в БД — подтягиваем значения из API
+  // Загружаем шаблон из БД
   useEffect(() => {
     async function loadDbTemplate() {
       if (!user || user.role !== 'admin') return;
+      setIsFetching(true);
       try {
         const res = await fetch(`/api/admin/templates/${templateCode}`);
-        if (!res.ok) return;
-        const dbTemplate = await res.json();
-        setFormData((prev) => ({ ...prev, ...dbTemplate }));
+        if (res.ok) {
+          const dbTemplate = await res.json();
+          setOriginalTemplate(dbTemplate);
+          setFormData((prev) => ({ ...prev, ...dbTemplate }));
+          setNotFound(false);
+        } else if (res.status === 404) {
+          setOriginalTemplate(null);
+          setNotFound(true);
+        }
       } catch (e) {
-        // игнорируем, если нет в БД
+        // оставляем текущее состояние
+      } finally {
+        setIsFetching(false);
       }
     }
     loadDbTemplate();
@@ -114,7 +125,15 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
 
   if (!user || user.role !== "admin") return null;
 
-  if (!originalTemplate) {
+  if (isFetching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (notFound || !originalTemplate) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">

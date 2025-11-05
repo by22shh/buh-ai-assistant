@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
-import { templates, getTemplateByCode } from "@/lib/data/templates";
+// Загружаем шаблон из БД через API, не полагаемся на статический список
 import { categories, getCategoryByCode } from "@/lib/data/categories";
 import { tags, getTagByCode } from "@/lib/data/tags";
 
@@ -16,19 +16,29 @@ export default function AdminTemplateViewPage({ params }: { params: Promise<{ co
   const resolvedParams = use(params);
   const templateCode = resolvedParams.code;
 
-  const [template, setTemplate] = useState(getTemplateByCode(templateCode));
+  const [template, setTemplate] = useState<any | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     async function loadDbTemplate() {
       if (!user || user.role !== 'admin') return;
+      setIsFetching(true);
       try {
         const res = await fetch(`/api/admin/templates/${templateCode}`);
         if (res.ok) {
           const dbTemplate = await res.json();
-          setTemplate((prev: any) => ({ ...prev, ...dbTemplate }));
-          return;
+          setTemplate(dbTemplate);
+          setNotFound(false);
+        } else if (res.status === 404) {
+          setTemplate(null);
+          setNotFound(true);
         }
-      } catch (e) {}
+      } catch (e) {
+        // оставляем прежнее состояние
+      } finally {
+        setIsFetching(false);
+      }
     }
     loadDbTemplate();
   }, [user, templateCode]);
@@ -49,7 +59,15 @@ export default function AdminTemplateViewPage({ params }: { params: Promise<{ co
 
   if (!user || user.role !== "admin") return null;
 
-  if (!template) {
+  if (isFetching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (notFound || !template) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
