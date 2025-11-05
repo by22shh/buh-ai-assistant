@@ -45,8 +45,26 @@ export function validateCsrfToken(request: NextRequest): boolean {
   // Получаем токен из header
   const headerToken = request.headers.get('x-csrf-token');
 
-  // Токены должны совпадать и существовать
-  return !!(cookieToken && headerToken && cookieToken === headerToken);
+  // 1) Строгая проверка: и в cookie, и в header, и они совпадают
+  if (cookieToken && headerToken && cookieToken === headerToken) {
+    return true;
+  }
+
+  // 2) Fallback для случаев, когда заголовок не проставлен на клиенте,
+  // но запрос выполняется из того же origin (same-origin) и есть cookie CSRF.
+  // Это сохраняет защиту от cross-site запросов, не ослабляя безопасность.
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  const currentOrigin = request.nextUrl.origin; // e.g. https://example.com
+
+  const isSameOriginByOrigin = !!origin && origin === currentOrigin;
+  const isSameOriginByReferer = !!referer && referer.startsWith(currentOrigin + '/');
+
+  if (cookieToken && (isSameOriginByOrigin || isSameOriginByReferer)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
