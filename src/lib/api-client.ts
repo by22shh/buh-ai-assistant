@@ -157,15 +157,24 @@ export async function apiClient<T = any>(
   });
 
   if (!response.ok) {
-    // При 401 пытаемся обновить токен и повторить запрос
+    // Пробуем прочитать тело ошибки, чтобы понять причину (CSRF/доступ/авторизация)
+    const errorBody = await response.json().catch(() => ({ error: 'Unknown error' }));
+
+    // 401 → попытаться рефрешнуть токен и повторить один раз
     if (typeof window !== 'undefined' && response.status === 401 && !isRetry) {
       const refreshSuccess = await attemptTokenRefresh();
-      
       if (refreshSuccess) {
-        // Токен обновлен, повторяем оригинальный запрос
         return apiClient<T>(url, options, true);
       }
-      // Refresh не удался, продолжаем с редиректом на логин
+    }
+
+    // 403 из-за CSRF → запросить новый CSRF через refresh и повторить один раз
+    const csrfFailed = response.status === 403 && typeof errorBody?.message === 'string' && errorBody.message.toLowerCase().includes('csrf');
+    if (typeof window !== 'undefined' && csrfFailed && !isRetry) {
+      const refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        return apiClient<T>(url, options, true);
+      }
     }
 
     // Редиректы при ошибках авторизации/доступа
@@ -174,7 +183,7 @@ export async function apiClient<T = any>(
 
       // 403: доступ ограничен (например, истек пробный период) → на страницу триала
       if (response.status === 403) {
-        if (currentPath !== '/trial/expired') {
+        if (currentPath !== '/trial/expired' && !csrfFailed) {
           window.location.href = '/trial/expired';
           return new Promise<T>(() => {});
         }
@@ -190,8 +199,7 @@ export async function apiClient<T = any>(
       }
     }
 
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || error.message || 'API request failed');
+    throw new Error(errorBody.error || errorBody.message || 'API request failed');
   }
 
   const data = await response.json();
