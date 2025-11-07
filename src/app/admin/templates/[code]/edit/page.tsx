@@ -16,6 +16,7 @@ import { categories } from "@/lib/data/categories";
 import { tags } from "@/lib/data/tags";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function AdminTemplateEditPage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
@@ -27,6 +28,8 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
   const [isFetching, setIsFetching] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Template>>({
@@ -115,6 +118,20 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
     }));
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/api/admin/templates/${templateCode}`);
+      toast.success("Шаблон удалён");
+      router.push("/admin/templates");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось удалить шаблон";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -163,6 +180,12 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
               <p className="text-muted-foreground">Код: {templateCode}</p>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                onClick={() => setIsDeleteOpen(true)}
+              >
+                Удалить
+              </Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? "Сохранение..." : "Сохранить"}
               </Button>
@@ -173,6 +196,18 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
           </div>
         </div>
       </header>
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        onConfirm={handleDelete}
+        title="Удалить шаблон?"
+        description="Это действие нельзя отменить. Шаблон будет окончательно удалён."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        variant="destructive"
+        loading={deleting}
+      />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="grid gap-6">
