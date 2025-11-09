@@ -66,10 +66,12 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
 
   const template = templateCode ? getTemplateByCode(templateCode) : null;
   const [dbTemplate, setDbTemplate] = useState<any | null>(null);
+  const [isTemplateFetching, setIsTemplateFetching] = useState(false);
 
   useEffect(() => {
     async function loadTemplate() {
       if (!templateCode) return;
+      setIsTemplateFetching(true);
       try {
         const res = await fetch('/api/templates');
         if (res.ok) {
@@ -77,12 +79,26 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
           const found = list.find((t: any) => t.code === templateCode);
           if (found) setDbTemplate(found);
         }
-      } catch (e) {}
+      } catch (e) {
+        // ignore
+      } finally {
+        setIsTemplateFetching(false);
+      }
     }
     loadTemplate();
   }, [templateCode]);
 
-  if (!template) {
+  const effectiveTemplate = template || dbTemplate;
+
+  if (!effectiveTemplate && isTemplateFetching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!effectiveTemplate) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Шаблон не найден</p>
@@ -125,7 +141,7 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userPrompt: userMessage,
-          templateName: template.nameRu,
+          templateName: effectiveTemplate.nameRu,
           conversationHistory
         })
       });
@@ -229,8 +245,8 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userPrompt: `Обработай следующий текст и составь на его основе документ "${template.nameRu}":\n\n${fileText}`,
-          templateName: template.nameRu,
+          userPrompt: `Обработай следующий текст и составь на его основе документ "${effectiveTemplate.nameRu}":\n\n${fileText}`,
+          templateName: effectiveTemplate.nameRu,
           conversationHistory
         })
       });
