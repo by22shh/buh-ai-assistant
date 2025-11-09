@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import { getCurrentUser } from '@/lib/auth-utils';
 import fontkit from '@pdf-lib/fontkit';
+import { readFile } from 'fs/promises';
+import { resolve } from 'path';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Cache fonts across invocations to reduce latency and external requests
+// Пути к локальным шрифтам (поддержка кириллицы)
+const FONT_REGULAR_PATH = resolve(process.cwd(), 'public/fonts/DejaVuSans.ttf');
+const FONT_BOLD_PATH = resolve(process.cwd(), 'public/fonts/DejaVuSans-Bold.ttf');
+
+// Cache fonts across invocations to reduce latency
 let cachedFontBytes: Uint8Array | null = null;
 let cachedFontBoldBytes: Uint8Array | null = null;
 
@@ -47,86 +53,31 @@ export async function POST(request: NextRequest) {
     // Регистрируем fontkit для поддержки TTF шрифтов
     pdfDoc.registerFontkit(fontkit);
 
-    // Загружаем шрифты с поддержкой кириллицы (DejaVu Sans)
-    // Перечень зеркал/CDN — пробуем по очереди, кешируем успешный вариант
-    const regularCandidates = [
-      'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf',
-      'https://unpkg.com/@dejavu-fonts/dejavu-sans@2.37/ttf/DejaVuSans.ttf',
-      'https://cdnjs.cloudflare.com/ajax/libs/dejavu/2.37/ttf/DejaVuSans.ttf',
-      // GitHub raw как крайний вариант (иногда медленный)
-      'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans.ttf',
-    ];
-    const boldCandidates = [
-      'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans-Bold.ttf',
-      'https://unpkg.com/@dejavu-fonts/dejavu-sans@2.37/ttf/DejaVuSans-Bold.ttf',
-      'https://cdnjs.cloudflare.com/ajax/libs/dejavu/2.37/ttf/DejaVuSans-Bold.ttf',
-      'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans-Bold.ttf',
-    ];
-    
-    // Fetch с таймаутом 10 секунд
-    const fetchWithTimeout = async (url: string, timeout = 10000) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      try {
-        const response = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'pdf-generator/1.0' } });
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const buf = await response.arrayBuffer();
-        return new Uint8Array(buf);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        throw error;
-      }
-    };
-    
     let font, fontBold;
     
     try {
-      // Загружаем шрифты (с кэшем) — пытаемся через несколько зеркал
       if (!cachedFontBytes) {
-        let lastErr: unknown = null;
-        for (const url of regularCandidates) {
-          try {
-            cachedFontBytes = await fetchWithTimeout(url, 12000);
-            if (cachedFontBytes) break;
-          } catch (e) {
-            lastErr = e;
-          }
-        }
-        if (!cachedFontBytes) throw lastErr || new Error('Failed to fetch regular font');
+        cachedFontBytes = new Uint8Array(await readFile(FONT_REGULAR_PATH));
       }
       if (!cachedFontBoldBytes) {
-        let lastErr: unknown = null;
-        for (const url of boldCandidates) {
-          try {
-            cachedFontBoldBytes = await fetchWithTimeout(url, 12000);
-            if (cachedFontBoldBytes) break;
-          } catch (e) {
-            lastErr = e;
-          }
-        }
-        if (!cachedFontBoldBytes) throw lastErr || new Error('Failed to fetch bold font');
+        cachedFontBoldBytes = new Uint8Array(await readFile(FONT_BOLD_PATH));
       }
 
-      font = await pdfDoc.embedFont(cachedFontBytes);
-      fontBold = await pdfDoc.embedFont(cachedFontBoldBytes);
+      font = await pdfDoc.embedFont(cachedFontBytes, { subset: true });
+      fontBold = await pdfDoc.embedFont(cachedFontBoldBytes, { subset: true });
       
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ DejaVu Sans fonts loaded successfully (custom Unicode fonts active)');
+        console.log('✅ DejaVu Sans fonts loaded from local files');
       }
     } catch (fontError) {
-      // Fallback: в случае недоступности внешних шрифтов используем стандартные
-      // Предупреждение: стандартные Helvetica/Helvetica-Bold могут не поддерживать кириллицу.
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('⚠️ Fallback to StandardFonts due to font load error:', fontError);
-      }
-      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      console.error('❌ Failed to load local fonts for PDF generation:', fontError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Не удалось загрузить шрифты для PDF. Обновите страницу и попробуйте снова.',
+        },
+        { status: 500 }
+      );
     }
 
     // Параметры страницы
