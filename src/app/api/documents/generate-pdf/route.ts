@@ -7,8 +7,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 // Cache fonts across invocations to reduce latency and external requests
-let cachedFontBytes: ArrayBuffer | null = null;
-let cachedFontBoldBytes: ArrayBuffer | null = null;
+let cachedFontBytes: Uint8Array | null = null;
+let cachedFontBoldBytes: Uint8Array | null = null;
 
 /**
  * POST /api/documents/generate-pdf
@@ -69,14 +69,15 @@ export async function POST(request: NextRequest) {
       const timeoutId = setTimeout(() => controller.abort(), timeout);
       
       try {
-        const response = await fetch(url, { signal: controller.signal });
+        const response = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'pdf-generator/1.0' } });
         clearTimeout(timeoutId);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        return await response.arrayBuffer();
+        const buf = await response.arrayBuffer();
+        return new Uint8Array(buf);
       } catch (error) {
         clearTimeout(timeoutId);
         throw error;
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       fontBold = await pdfDoc.embedFont(cachedFontBoldBytes);
       
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ DejaVu Sans fonts loaded successfully');
+        console.log('✅ DejaVu Sans fonts loaded successfully (custom Unicode fonts active)');
       }
     } catch (fontError) {
       // Fallback: в случае недоступности внешних шрифтов используем стандартные
