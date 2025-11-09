@@ -45,8 +45,8 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
       return;
     }
 
-    // Загружаем настроенные реквизиты для шаблона из API
-    if (templateCode) {
+    // Загружаем настроенные реквизиты для шаблона (только админ имеет доступ к admin API)
+    if (templateCode && user && user.role === 'admin') {
       fetch(`/api/admin/template-configs/${templateCode}`)
         .then(res => {
           if (res.ok) {
@@ -64,7 +64,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         })
         .catch(err => {
           // Ошибка загрузки конфигурации - это не критично, используем fallback
-          console.error('Error loading requisites config:', err);
+          // ignore
         });
     }
 
@@ -303,12 +303,11 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
             <CardContent className="space-y-4">
               <div>
                 <Label>Организация</Label>
-                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                <Select value={selectedOrgId || undefined} onValueChange={setSelectedOrgId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Не выбирать" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Не выбирать</SelectItem>
                     {organizations.map((org) => (
                       <SelectItem key={org.id} value={org.id!}>
                         {org.name_full}
