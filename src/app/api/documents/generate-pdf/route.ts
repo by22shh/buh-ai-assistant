@@ -48,9 +48,20 @@ export async function POST(request: NextRequest) {
     pdfDoc.registerFontkit(fontkit);
 
     // Загружаем шрифты с поддержкой кириллицы (DejaVu Sans)
-    // Используем CDN jsDelivr для DejaVu Sans
-    const fontUrl = 'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf';
-    const fontBoldUrl = 'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans-Bold.ttf';
+    // Перечень зеркал/CDN — пробуем по очереди, кешируем успешный вариант
+    const regularCandidates = [
+      'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf',
+      'https://unpkg.com/@dejavu-fonts/dejavu-sans@2.37/ttf/DejaVuSans.ttf',
+      'https://cdnjs.cloudflare.com/ajax/libs/dejavu/2.37/ttf/DejaVuSans.ttf',
+      // GitHub raw как крайний вариант (иногда медленный)
+      'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans.ttf',
+    ];
+    const boldCandidates = [
+      'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans-Bold.ttf',
+      'https://unpkg.com/@dejavu-fonts/dejavu-sans@2.37/ttf/DejaVuSans-Bold.ttf',
+      'https://cdnjs.cloudflare.com/ajax/libs/dejavu/2.37/ttf/DejaVuSans-Bold.ttf',
+      'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/ttf/DejaVuSans-Bold.ttf',
+    ];
     
     // Fetch с таймаутом 10 секунд
     const fetchWithTimeout = async (url: string, timeout = 10000) => {
@@ -75,14 +86,30 @@ export async function POST(request: NextRequest) {
     let font, fontBold;
     
     try {
-      // Загружаем шрифты параллельно (с кэшем в памяти)
-      if (!cachedFontBytes || !cachedFontBoldBytes) {
-        const [fontBytes, fontBoldBytes] = await Promise.all([
-          fetchWithTimeout(fontUrl),
-          fetchWithTimeout(fontBoldUrl)
-        ]);
-        cachedFontBytes = fontBytes;
-        cachedFontBoldBytes = fontBoldBytes;
+      // Загружаем шрифты (с кэшем) — пытаемся через несколько зеркал
+      if (!cachedFontBytes) {
+        let lastErr: unknown = null;
+        for (const url of regularCandidates) {
+          try {
+            cachedFontBytes = await fetchWithTimeout(url, 12000);
+            if (cachedFontBytes) break;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (!cachedFontBytes) throw lastErr || new Error('Failed to fetch regular font');
+      }
+      if (!cachedFontBoldBytes) {
+        let lastErr: unknown = null;
+        for (const url of boldCandidates) {
+          try {
+            cachedFontBoldBytes = await fetchWithTimeout(url, 12000);
+            if (cachedFontBoldBytes) break;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (!cachedFontBoldBytes) throw lastErr || new Error('Failed to fetch bold font');
       }
 
       font = await pdfDoc.embedFont(cachedFontBytes);
