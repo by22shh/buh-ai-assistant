@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { getCurrentUser } from '@/lib/auth-utils';
 import fontkit from '@pdf-lib/fontkit';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+// Cache fonts across invocations to reduce latency and external requests
+let cachedFontBytes: ArrayBuffer | null = null;
+let cachedFontBoldBytes: ArrayBuffer | null = null;
 
 /**
  * POST /api/documents/generate-pdf
@@ -68,29 +75,30 @@ export async function POST(request: NextRequest) {
     let font, fontBold;
     
     try {
-      // Загружаем шрифты параллельно
-      const [fontBytes, fontBoldBytes] = await Promise.all([
-        fetchWithTimeout(fontUrl),
-        fetchWithTimeout(fontBoldUrl)
-      ]);
-      
-      font = await pdfDoc.embedFont(fontBytes);
-      fontBold = await pdfDoc.embedFont(fontBoldBytes);
+      // Загружаем шрифты параллельно (с кэшем в памяти)
+      if (!cachedFontBytes || !cachedFontBoldBytes) {
+        const [fontBytes, fontBoldBytes] = await Promise.all([
+          fetchWithTimeout(fontUrl),
+          fetchWithTimeout(fontBoldUrl)
+        ]);
+        cachedFontBytes = fontBytes;
+        cachedFontBoldBytes = fontBoldBytes;
+      }
+
+      font = await pdfDoc.embedFont(cachedFontBytes);
+      fontBold = await pdfDoc.embedFont(cachedFontBoldBytes);
       
       if (process.env.NODE_ENV !== 'production') {
         console.log('✅ DejaVu Sans fonts loaded successfully');
       }
     } catch (fontError) {
-      console.error('❌ Failed to load DejaVu Sans fonts:', fontError);
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Не удалось загрузить шрифты для PDF. Попробуйте позже или обратитесь в поддержку.',
-          details: process.env.NODE_ENV !== 'production' ? String(fontError) : undefined
-        },
-        { status: 503 }
-      );
+      // Fallback: в случае недоступности внешних шрифтов используем стандартные
+      // Предупреждение: стандартные Helvetica/Helvetica-Bold могут не поддерживать кириллицу.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('⚠️ Fallback to StandardFonts due to font load error:', fontError);
+      }
+      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     }
 
     // Параметры страницы
