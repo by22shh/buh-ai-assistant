@@ -216,7 +216,9 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
         if (bodyRes.ok) {
           const data = await bodyRes.json();
           const config = data.requisitesConfig || {};
-          const parsedFields = Array.isArray(config.fields) ? config.fields.map(normalizeField) : [];
+          const parsedFields: TemplateFieldMeta[] = Array.isArray(config.fields)
+            ? config.fields.map((field: unknown) => normalizeField(field))
+            : [];
           setFields(parsedFields);
           const localFieldsMap = new Map<string, TemplateFieldMeta>();
           parsedFields.forEach((field) => localFieldsMap.set(field.code, field));
