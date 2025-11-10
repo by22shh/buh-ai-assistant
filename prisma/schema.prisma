@@ -173,13 +173,35 @@ model Template {
   tags             String[]
   isEnabled        Boolean   @default(true)
   version          String
+  body            TemplateBody?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  documents       Document[]
+
   @@index([code])
   @@index([category])
   @@index([isEnabled])
+}
+
+model TemplateBody {
+  id            String   @id @default(uuid())
+  templateCode  String   @unique
+  filePath      String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  docHash       String
+  previewText   String?  @db.Text
+  placeholders  Json?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  template Template @relation(fields: [templateCode], references: [code], onDelete: Cascade)
+
+  @@index([templateCode])
 }
 
 // История изменений доступа пользователей

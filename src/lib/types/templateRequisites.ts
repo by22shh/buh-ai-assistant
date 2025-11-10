@@ -1,4 +1,18 @@
-export type FieldType = "text" | "number" | "date" | "email" | "phone" | "select" | "textarea" | "inn" | "ogrn" | "bik" | "account";
+export const FIELD_TYPES = [
+  "text",
+  "number",
+  "date",
+  "email",
+  "phone",
+  "select",
+  "textarea",
+  "inn",
+  "ogrn",
+  "bik",
+  "account",
+] as const;
+
+export type FieldType = (typeof FIELD_TYPES)[number];
 
 export interface FieldOption {
   value: string;
@@ -27,7 +41,31 @@ export interface RequisiteField {
 export interface TemplateRequisites {
   templateCode: string;
   fields: RequisiteField[];
+  placeholderBindings?: TemplatePlaceholderBinding[];
+  appendMode?: "auto" | "disabled";
   updatedAt?: string;
+  updatedBy?: string;
+}
+
+export type PlaceholderSource = "requisite" | "organization" | "system" | "custom";
+
+export interface TemplatePlaceholderBinding {
+  name: string;
+  label: string;
+  source: PlaceholderSource;
+  fieldCode?: string;
+  defaultValue?: string;
+  required?: boolean;
+  autofillFromOrg?: boolean;
+  fieldDefinition?: RequisiteField;
+}
+
+export interface TemplateRequisitesConfig {
+  fields?: RequisiteField[];
+  placeholderBindings?: TemplatePlaceholderBinding[];
+  appendMode?: "auto" | "disabled";
+  version?: string;
+  lastUpdated?: string;
   updatedBy?: string;
 }
 

@@ -188,6 +188,8 @@ export default function DocumentsArchivePage() {
           bodyText: doc.bodyText || 'Текст документа не найден',
           requisites: doc.requisites || {},
           templateName: template?.nameRu || doc.templateCode,
+          templateCode: doc.templateCode,
+          documentId: doc.id,
           organization: organization
         })
       });

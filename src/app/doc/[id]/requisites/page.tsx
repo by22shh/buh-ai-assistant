@@ -232,6 +232,8 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
           bodyText: doc.bodyText || 'Текст документа не найден',
           requisites: doc.requisites || {},
           templateName: effectiveTemplate.nameRu,
+          templateCode: doc.templateCode || effectiveTemplate.code,
+          documentId: doc.id,
           organization: organization
         })
       });

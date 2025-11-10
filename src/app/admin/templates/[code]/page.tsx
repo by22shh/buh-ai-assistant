@@ -105,6 +105,9 @@ export default function AdminTemplateViewPage({ params }: { params: Promise<{ co
               <Button variant="outline" onClick={() => router.push(`/admin/templates/${template.code}/edit`)}>
                 Редактировать
               </Button>
+              <Button variant="outline" onClick={() => router.push(`/admin/templates/${template.code}/body`)}>
+                Тело шаблона
+              </Button>
               <Button variant="outline" onClick={() => router.push(`/admin/templates/${template.code}/requisites`)}>
                 Настройка реквизитов
               </Button>
