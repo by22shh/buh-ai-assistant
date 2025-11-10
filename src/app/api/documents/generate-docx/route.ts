@@ -457,7 +457,7 @@ export async function POST(request: NextRequest) {
     }
 
     let templateRecord: { nameRu: string; version: string } | null = null;
-    let templateBody: { filePath?: string | null; fileData?: Buffer | null; placeholders?: any } | null = null;
+    let templateBody: { filePath?: string | null; fileData?: Uint8Array | null; placeholders?: any } | null = null;
     let config: NormalizedConfig = { appendMode: DEFAULT_APPEND_MODE, placeholderBindings: [], fields: [] };
 
     if (effectiveTemplateCode) {
