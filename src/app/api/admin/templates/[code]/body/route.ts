@@ -88,7 +88,7 @@ export async function PUT(
           mimeType: finalized.mimeType,
           docHash: finalized.docHash,
           previewText: previewValue,
-          placeholders: validated.placeholders as unknown as Prisma.JsonValue,
+          placeholders: validated.placeholders,
           createdBy: user.email ?? "admin",
         },
         create: {
@@ -99,7 +99,7 @@ export async function PUT(
           mimeType: finalized.mimeType,
           docHash: finalized.docHash,
           previewText: previewValue,
-          placeholders: validated.placeholders as unknown as Prisma.JsonValue,
+          placeholders: validated.placeholders,
           createdBy: user.email ?? "admin",
         },
       });
@@ -108,7 +108,7 @@ export async function PUT(
         where: { templateCode },
         data: {
           previewText: previewValue,
-          placeholders: validated.placeholders as unknown as Prisma.JsonValue,
+          placeholders: validated.placeholders,
           createdBy: user.email ?? existingBody.createdBy,
         },
       });
