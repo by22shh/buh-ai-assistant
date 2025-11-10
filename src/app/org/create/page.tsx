@@ -23,16 +23,29 @@ export default function CreateOrganizationPage() {
     is_default: false,
     subject_type: "legal_entity",
     name_full: "",
+    name_short: "",
     inn: "",
+    kpp: "",
+    ogrn: "",
+    ogrnip: "",
+    okpo: "",
+    okved: "",
     address_legal: "",
+    address_postal: "",
+    phone: "",
     email: "",
+    website: "",
     head_title: "",
     head_fio: "",
     authority_base: "Устава",
+    poa_number: "",
+    poa_date: "",
     bank_bik: "",
     bank_name: "",
     bank_ks: "",
-    bank_rs: ""
+    bank_rs: "",
+    seal_note: "",
+    notes: "",
   });
 
   const { user, isLoading: userLoading } = useUser();
@@ -225,6 +238,28 @@ export default function CreateOrganizationPage() {
                 </>
               )}
 
+              <div>
+                <Label htmlFor="okpo">ОКПО</Label>
+                <Input
+                  id="okpo"
+                  value={formData.okpo || ""}
+                  onChange={(e) => setFormData({ ...formData, okpo: e.target.value })}
+                  placeholder="Например, 12345678"
+                  maxLength={20}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="okved">ОКВЭД</Label>
+                <Input
+                  id="okved"
+                  value={formData.okved || ""}
+                  onChange={(e) => setFormData({ ...formData, okved: e.target.value })}
+                  placeholder="Например, 62.01"
+                  maxLength={50}
+                />
+              </div>
+
               {formData.subject_type === "sole_proprietor" && (
                 <div>
                   <Label htmlFor="ogrnip">ОГРНИП *</Label>
@@ -258,6 +293,16 @@ export default function CreateOrganizationPage() {
               </div>
 
               <div>
+                <Label htmlFor="address_postal">Почтовый адрес</Label>
+                <Textarea
+                  id="address_postal"
+                  value={formData.address_postal || ""}
+                  onChange={(e) => setFormData({ ...formData, address_postal: e.target.value })}
+                  maxLength={200}
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="phone">Телефон</Label>
                 <Input
                   id="phone"
@@ -276,6 +321,17 @@ export default function CreateOrganizationPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="website">Веб-сайт</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website || ""}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://example.ru"
                 />
               </div>
             </CardContent>
@@ -349,6 +405,35 @@ export default function CreateOrganizationPage() {
                   </div>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Дополнительная информация</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="seal_note">Примечание о печати</Label>
+                <Textarea
+                  id="seal_note"
+                  value={formData.seal_note || ""}
+                  onChange={(e) => setFormData({ ...formData, seal_note: e.target.value })}
+                  maxLength={200}
+                  placeholder="Например, печать не используется"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Дополнительные заметки</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes || ""}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  maxLength={500}
+                  placeholder="Любая дополнительная информация"
+                />
+              </div>
             </CardContent>
           </Card>
 
