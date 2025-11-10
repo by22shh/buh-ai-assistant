@@ -204,8 +204,8 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
       try {
         setLoadingStatus(true);
         const [templateRes, bodyRes] = await Promise.all([
-          fetch(`/api/admin/templates/${templateCode}`),
-          fetch(`/api/admin/templates/${templateCode}/body`),
+          fetch(`/api/admin/templates/${templateCode}`, { credentials: "include" }),
+          fetch(`/api/admin/templates/${templateCode}/body`, { credentials: "include" }),
         ]);
 
         if (templateRes.ok) {
@@ -296,6 +296,7 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
 
       const response = await fetch(`/api/admin/templates/${templateCode}/body/upload`, {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
 
@@ -390,6 +391,7 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
       const response = await fetch(`/api/admin/templates/${templateCode}/body`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           templateCode,
           uploadId: uploadId ?? undefined,
@@ -464,6 +466,7 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
     try {
       const response = await fetch(`/api/admin/templates/${templateCode}/body`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!response.ok) {
