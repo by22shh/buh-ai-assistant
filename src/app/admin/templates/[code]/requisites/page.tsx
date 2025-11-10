@@ -249,10 +249,13 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Фильтруем только включенные поля
+      const enabledFields = fields.filter(field => field.enabled);
+      
       const configData = {
         templateCode,
         requisitesConfig: {
-          fields: fields.sort((a, b) => a.order - b.order),
+          fields: enabledFields.sort((a, b) => a.order - b.order),
           version: template?.version || '1.0',
           lastUpdated: new Date().toISOString(),
           updatedBy: user?.email || 'admin'
@@ -261,7 +264,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
 
       await api.put(`/api/admin/template-configs/${templateCode}`, configData);
 
-      toast.success('Конфигурация реквизитов сохранена');
+      toast.success(`Конфигурация сохранена (${enabledFields.length} полей)`);
       await loadRequisitesConfig(); // Перезагружаем данные
     } catch (error) {
       console.error('Error saving requisites config:', error);

@@ -45,9 +45,9 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
       return;
     }
 
-    // Загружаем настроенные реквизиты для шаблона (только админ имеет доступ к admin API)
-    if (templateCode && user && user.role === 'admin') {
-      fetch(`/api/admin/template-configs/${templateCode}`)
+    // Загружаем настроенные реквизиты для шаблона (публичный endpoint)
+    if (templateCode && user) {
+      fetch(`/api/template-configs/${templateCode}`)
         .then(res => {
           if (res.ok) {
             return res.json();
@@ -64,7 +64,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         })
         .catch(err => {
           // Ошибка загрузки конфигурации - это не критично, используем fallback
-          // ignore
+          console.error('Error loading template config:', err);
         });
     }
 
