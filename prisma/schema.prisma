@@ -122,7 +122,6 @@ model Document {
 
   title             String?
   templateCode      String
-  template          Template  @relation(fields: [templateCode], references: [code])
   templateVersion   String
   bodyText          String?   @db.Text
   requisites        Json?     // Гибкое хранение реквизитов
@@ -178,8 +177,6 @@ model Template {
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
-  documents       Document[]
 
   @@index([code])
   @@index([category])
