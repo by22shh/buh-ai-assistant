@@ -76,7 +76,7 @@ function inferMetadata(name: string, providedLabel?: string) {
   };
 }
 
-function aggregatePlaceholders(rawTags: DocxtemplaterTag[] | undefined, fallbackTags: string[]) {
+function aggregatePlaceholders(rawTags: DocxtemplaterTag[] | undefined, fallbackRawTags: string[]) {
   const tagMap = new Map<string, PlaceholderMetadata>();
   const warnings: string[] = [];
 
@@ -125,7 +125,7 @@ function aggregatePlaceholders(rawTags: DocxtemplaterTag[] | undefined, fallback
     rawTags.forEach((tag) => handleTag(tag.raw));
   }
 
-  fallbackTags.forEach((tag) => handleTag(`\${${tag}}`));
+  fallbackRawTags.forEach((raw) => handleTag(raw));
 
   return { placeholders: Array.from(tagMap.values()), warnings };
 }
@@ -148,7 +148,7 @@ async function buildPreview(buffer: Buffer) {
 export async function extractDocxPlaceholders(fileBuffer: Buffer): Promise<ExtractPlaceholdersResult> {
   const warnings: string[] = [];
   let fullTags: DocxtemplaterTag[] | undefined;
-  let fallbackTags: string[] = [];
+  const fallbackRawTags: string[] = [];
 
   try {
     const zip = new PizZip(fileBuffer);
@@ -162,15 +162,21 @@ export async function extractDocxPlaceholders(fileBuffer: Buffer): Promise<Extra
     }
 
     if (!fullTags || fullTags.length === 0) {
-      const tagsObj = doc.getTags();
-      fallbackTags = Object.keys(tagsObj ?? {});
+      const fullText = typeof (doc as any).getFullText === "function" ? (doc as any).getFullText() : "";
+      if (typeof fullText === "string" && fullText.includes("${")) {
+        const regex = /\$\{([^}]+)\}/g;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(fullText))) {
+          fallbackRawTags.push(`\${${match[1]}}`);
+        }
+      }
     }
   } catch (error) {
     console.error("Placeholder extraction error", error);
     warnings.push("Не удалось полностью проанализировать плейсхолдеры. Проверьте корректность шаблона.");
   }
 
-  const { placeholders, warnings: aggregationWarnings } = aggregatePlaceholders(fullTags, fallbackTags);
+  const { placeholders, warnings: aggregationWarnings } = aggregatePlaceholders(fullTags, fallbackRawTags);
   warnings.push(...aggregationWarnings);
 
   const previewText = await buildPreview(fileBuffer);
