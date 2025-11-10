@@ -65,26 +65,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Rate limiting для всех API запросов
-  const ip = getIP(request);
-  const rateLimitResult = await checkApiRateLimit(ip);
+  // Rate limiting для всех API запросов (можно отключить через DISABLE_RATE_LIMIT=true)
+  const rateLimitDisabled = process.env.DISABLE_RATE_LIMIT === 'true';
+  
+  if (!rateLimitDisabled) {
+    const ip = getIP(request);
+    const rateLimitResult = await checkApiRateLimit(ip);
 
-  if (!rateLimitResult.success) {
-    return NextResponse.json(
-      {
-        error: 'Too Many Requests',
-        message: 'Слишком много запросов. Попробуйте позже.',
-        retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
-      },
-      {
-        status: 429,
-        headers: {
-          'X-RateLimit-Limit': rateLimitResult.limit.toString(),
-          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
-          'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Too Many Requests',
+          message: 'Слишком много запросов. Попробуйте позже.',
+          retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
         }
-      }
-    );
+      );
+    }
   }
 
   // Пропускаем публичные пути

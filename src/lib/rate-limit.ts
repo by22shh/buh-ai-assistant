@@ -104,12 +104,26 @@ const redis = hasUpstash
 
 /**
  * Rate limiter для API запросов
- * Production: 100 запросов в минуту на IP
+ * Production: 100 запросов в минуту на IP (или настраиваемый через RATE_LIMIT_API_REQUESTS)
+ * Development: 500 запросов в минуту (для локальной разработки)
  */
+const getApiRateLimit = (): number => {
+  // Приоритет: env переменная > окружение
+  if (process.env.RATE_LIMIT_API_REQUESTS) {
+    const limit = parseInt(process.env.RATE_LIMIT_API_REQUESTS, 10);
+    if (!isNaN(limit) && limit > 0) {
+      return limit;
+    }
+  }
+  return process.env.NODE_ENV === 'production' ? 100 : 500;
+};
+
+const apiRateLimit = getApiRateLimit();
+
 export const apiLimiter = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(100, '1 m'),
+      limiter: Ratelimit.slidingWindow(apiRateLimit, '1 m'),
       analytics: true,
       prefix: 'ratelimit:api',
     })
@@ -143,11 +157,33 @@ export const aiChatLimiter = redis
 
 /**
  * Получить IP адрес из request
+ * Поддерживает Netlify, Cloudflare и другие CDN/прокси
  */
 export function getIP(request: Request): string {
-  const xff = request.headers.get('x-forwarded-for');
-  const ip = xff ? xff.split(',')[0].trim() : '127.0.0.1';
-  return ip;
+  // Netlify и другие CDN передают реальный IP через специальные headers
+  // Проверяем в порядке приоритета
+  const headers = [
+    'x-nf-client-connection-ip',  // Netlify Edge (приоритет для production)
+    'x-forwarded-for',             // Стандартный proxy header
+    'x-real-ip',                   // Nginx и другие прокси
+    'cf-connecting-ip',            // Cloudflare (если используется)
+  ];
+
+  for (const header of headers) {
+    const value = request.headers.get(header);
+    if (value) {
+      // x-forwarded-for может содержать несколько IP через запятую (client, proxy1, proxy2)
+      // Берем первый (реальный IP клиента)
+      const ip = value.split(',')[0].trim();
+      // Проверяем что это не localhost
+      if (ip && ip !== '::1' && ip !== '127.0.0.1') {
+        return ip;
+      }
+    }
+  }
+
+  // Fallback для локальной разработки
+  return '127.0.0.1';
 }
 
 /**
@@ -160,7 +196,8 @@ const ONE_MINUTE_MS = 60 * 1000;
  */
 export async function checkApiRateLimit(identifier: string) {
   if (!apiLimiter) {
-    return memoryRateLimit('api', identifier, 100, ONE_MINUTE_MS);
+    const limit = getApiRateLimit();
+    return memoryRateLimit('api', identifier, limit, ONE_MINUTE_MS);
   }
 
   return await apiLimiter.limit(identifier);
