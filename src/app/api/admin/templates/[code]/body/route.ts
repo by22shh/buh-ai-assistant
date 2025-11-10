@@ -219,7 +219,9 @@ export async function DELETE(
       delete configData.placeholderBindings;
       delete configData.appendMode;
 
-      const cleanedConfig = Object.keys(configData).length === 0 ? Prisma.JsonNull : (configData as Prisma.JsonValue);
+      const cleanedConfig = Object.keys(configData).length === 0
+        ? Prisma.JsonNull
+        : ((configData as unknown) as Prisma.InputJsonValue);
 
       await prisma.templateConfig.update({
         where: { templateCode },
