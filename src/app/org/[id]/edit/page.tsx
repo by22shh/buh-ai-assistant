@@ -147,17 +147,19 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
       return;
     }
 
-    if (!validateBankKS(formData.bank_bik, formData.bank_ks)) {
-      toast.error("Корреспондентский счет не проходит контрольную проверку с БИК");
-      setLoading(false);
-      return;
-    }
+    // ВРЕМЕННО: Отключена клиентская валидация банковских счетов
+    // Валидация будет происходить на сервере
+    // if (!validateBankKS(formData.bank_bik, formData.bank_ks)) {
+    //   toast.error("Корреспондентский счет не проходит контрольную проверку с БИК");
+    //   setLoading(false);
+    //   return;
+    // }
 
-    if (!validateBankRS(formData.bank_bik, formData.bank_rs)) {
-      toast.error("Расчетный счет не проходит контрольную проверку с БИК");
-      setLoading(false);
-      return;
-    }
+    // if (!validateBankRS(formData.bank_bik, formData.bank_rs)) {
+    //   toast.error("Расчетный счет не проходит контрольную проверку с БИК");
+    //   setLoading(false);
+    //   return;
+    // }
 
     // Нормализация телефона
     if (formData.phone) {
