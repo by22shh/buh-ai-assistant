@@ -1,8 +1,38 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser } from "@/hooks/useUser";
 
 export default function Home() {
+  const router = useRouter();
+  const { user, isLoading } = useUser();
+
+  // Если пользователь уже авторизован, сразу редиректим на нужную страницу
+  useEffect(() => {
+    if (!isLoading && user) {
+      const redirectUrl = user.role === "admin" ? "/admin/templates" : "/templates";
+      router.push(redirectUrl);
+    }
+  }, [user, isLoading, router]);
+
+  // Обработчик клика на кнопку "Войти"
+  const handleLoginClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // Если пользователь уже авторизован, редиректим сразу
+    if (user) {
+      const redirectUrl = user.role === "admin" ? "/admin/templates" : "/templates";
+      router.push(redirectUrl);
+    } else {
+      // Иначе идем на страницу логина
+      router.push("/auth/login");
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -14,9 +44,9 @@ export default function Home() {
             <a href="#how-it-works" className="text-sm hover:underline">Как работает</a>
             <a href="#try-free" className="text-sm hover:underline">Попробовать</a>
           </nav>
-          <Link href="/auth/login">
-            <Button>Войти через Email</Button>
-          </Link>
+          <Button onClick={handleLoginClick} disabled={isLoading}>
+            {isLoading ? "Загрузка..." : "Войти через Email"}
+          </Button>
         </div>
       </header>
 
@@ -31,11 +61,14 @@ export default function Home() {
           <strong className="text-primary">5 документов бесплатно</strong> — без карты и сложной регистрации.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link href="/auth/login">
-            <Button size="lg" className="w-full sm:w-auto">
-              Начать бесплатно
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            className="w-full sm:w-auto"
+            onClick={handleLoginClick}
+            disabled={isLoading}
+          >
+            {isLoading ? "Загрузка..." : "Начать бесплатно"}
+          </Button>
           <p className="text-sm text-muted-foreground">
             Вход через Email — быстро и безопасно
           </p>
