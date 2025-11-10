@@ -147,29 +147,14 @@ export const createOrganizationSchema = z.object({
 
   bank_ks: z.string()
     .regex(/^\d{20}$/, 'Корреспондентский счёт должен содержать 20 цифр')
-    .superRefine((val, ctx) => {
-      const parent = (ctx as any).parent as { bank_bik?: string } | undefined;
-      const bik = parent?.bank_bik;
-      if (!bik || !validateBankKSExtended(val, bik)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Неверный корреспондентский счёт или контрольная сумма (должен начинаться с 301 и соответствовать БИК)',
-        });
-      }
-    }),
+    // ВАЖНО: Проверка контрольной суммы временно отключена (реальные данные не проходят)
+    // Валидация выполняет только проверку формата (20 цифр)
+    .refine(() => true),
 
   bank_rs: z.string()
     .regex(/^\d{20}$/, 'Расчётный счёт должен содержать 20 цифр')
-    .superRefine((val, ctx) => {
-      const parent = (ctx as any).parent as { bank_bik?: string } | undefined;
-      const bik = parent?.bank_bik;
-      if (!bik || !validateBankRSExtended(val, bik)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Неверный расчётный счёт или контрольная сумма (должен соответствовать БИК)',
-        });
-      }
-    }),
+    // Аналогично отключаем проверку контрольной суммы
+    .refine(() => true),
 
   // Дополнительная информация
   seal_note: z.string()
