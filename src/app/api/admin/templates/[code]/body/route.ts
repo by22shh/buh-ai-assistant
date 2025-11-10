@@ -83,6 +83,7 @@ export async function PUT(
         where: { templateCode },
         update: {
           filePath: finalized.relativePath,
+          fileData: finalized.buffer,
           fileName: finalized.fileName,
           fileSize: finalized.fileSize,
           mimeType: finalized.mimeType,
@@ -94,6 +95,7 @@ export async function PUT(
         create: {
           templateCode,
           filePath: finalized.relativePath,
+          fileData: finalized.buffer,
           fileName: finalized.fileName,
           fileSize: finalized.fileSize,
           mimeType: finalized.mimeType,

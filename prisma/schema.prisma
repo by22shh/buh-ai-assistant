@@ -187,6 +187,7 @@ model TemplateBody {
   id            String   @id @default(uuid())
   templateCode  String   @unique
   filePath      String
+  fileData      Bytes?
   fileName      String
   fileSize      Int
   mimeType      String

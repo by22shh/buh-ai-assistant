@@ -117,6 +117,7 @@ export interface FinalizeUploadResult {
   mimeType: string;
   docHash: string;
   originalName: string;
+  buffer: Buffer;
 }
 
 export async function finalizeUpload({ uploadId, templateCode, previousRelativePath }: FinalizeUploadParams): Promise<FinalizeUploadResult> {
@@ -144,6 +145,7 @@ export async function finalizeUpload({ uploadId, templateCode, previousRelativeP
     mimeType: meta.mimeType,
     docHash: hash,
     originalName: meta.originalName,
+    buffer: fileBuffer,
   };
 }
 

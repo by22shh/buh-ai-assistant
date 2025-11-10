@@ -274,7 +274,7 @@ function buildRequisitesParagraphsDocx(lines: string[]): Paragraph[] {
 }
 
 async function generateFromTemplateBody(params: {
-  templateBody: { filePath: string; placeholders?: any };
+  templateBody: { filePath?: string | null; fileData?: Buffer | null; placeholders?: any };
   config: NormalizedConfig;
   template?: { nameRu: string; version: string } | null;
   user?: { firstName?: string | null; lastName?: string | null; middleName?: string | null } | null;
@@ -283,8 +283,22 @@ async function generateFromTemplateBody(params: {
   organization?: Record<string, unknown> | null;
   templateName?: string;
 }): Promise<Buffer> {
-  const templatePath = resolveStoredPath(params.templateBody.filePath);
-  const templateContent = await fs.readFile(templatePath);
+  let templateContent: Buffer | null = null;
+
+  if (params.templateBody.fileData && params.templateBody.fileData.length > 0) {
+    templateContent = Buffer.from(params.templateBody.fileData);
+  } else if (params.templateBody.filePath) {
+    const templatePath = resolveStoredPath(params.templateBody.filePath);
+    try {
+      templateContent = await fs.readFile(templatePath);
+    } catch (error) {
+      console.warn("Template file not accessible on disk, falling back to stored data");
+    }
+  }
+
+  if (!templateContent) {
+    throw new Error("Тело шаблона недоступно. Загрузите файл шаблона заново.");
+  }
 
   const zip = new PizZip(templateContent);
   const doc = new Docxtemplater(zip, {
@@ -443,7 +457,7 @@ export async function POST(request: NextRequest) {
     }
 
     let templateRecord: { nameRu: string; version: string } | null = null;
-    let templateBody: { filePath: string; placeholders?: any } | null = null;
+    let templateBody: { filePath?: string | null; fileData?: Buffer | null; placeholders?: any } | null = null;
     let config: NormalizedConfig = { appendMode: DEFAULT_APPEND_MODE, placeholderBindings: [], fields: [] };
 
     if (effectiveTemplateCode) {
@@ -455,7 +469,7 @@ export async function POST(request: NextRequest) {
       const [bodyRecord, configRecord] = await Promise.all([
         prisma.templateBody.findUnique({
           where: { templateCode: effectiveTemplateCode },
-          select: { filePath: true, placeholders: true },
+          select: { filePath: true, fileData: true, placeholders: true },
         }),
         prisma.templateConfig.findUnique({
           where: { templateCode: effectiveTemplateCode },
