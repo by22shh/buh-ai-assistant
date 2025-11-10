@@ -167,12 +167,14 @@ export async function PUT(
       updatedBy: user.email ?? "admin",
     };
 
+    const configJson = nextConfig as unknown as Prisma.InputJsonValue;
+
     const updatedConfig = await prisma.templateConfig.upsert({
       where: { templateCode },
-      update: { requisitesConfig: nextConfig as Prisma.JsonValue },
+      update: { requisitesConfig: configJson },
       create: {
         templateCode,
-        requisitesConfig: nextConfig as Prisma.JsonValue,
+        requisitesConfig: configJson,
       },
     });
 
