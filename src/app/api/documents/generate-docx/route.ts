@@ -24,13 +24,13 @@ interface NormalizedField {
   code: string;
   label: string;
   order: number;
-}
+      }
 
 interface NormalizedConfig {
   appendMode: 'auto' | 'disabled';
   placeholderBindings: NormalizedBinding[];
   fields: NormalizedField[];
-}
+        }
 
 const DEFAULT_APPEND_MODE: 'auto' | 'disabled' = 'auto';
 

@@ -28,6 +28,6 @@ declare module "docxtemplater" {
 declare module "pizzip" {
   export default class PizZip {
     constructor(data?: ArrayBuffer | Uint8Array | string, options?: Record<string, unknown>);
-    file(name: string): any;
+    file(name: string, data?: any, options?: Record<string, unknown>): any;
   }
 }
