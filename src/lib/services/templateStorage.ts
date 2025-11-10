@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import os from "os";
 
 interface TempUploadMeta {
   uploadId: string;
@@ -11,16 +12,20 @@ interface TempUploadMeta {
   createdAt: string;
 }
 
-const DEFAULT_STORAGE_ROOT = path.join(process.cwd(), "storage", "template-bodies");
-const DEFAULT_TMP_ROOT = path.join(process.cwd(), "storage", "tmp");
+const legacyStorageRoot = process.env.TEMPLATE_STORAGE_PATH;
+const BASE_STORAGE_ROOT =
+  process.env.TEMPLATE_STORAGE_ROOT ??
+  legacyStorageRoot ??
+  (process.env.NODE_ENV === "production"
+    ? path.join(os.tmpdir(), "template-storage")
+    : path.join(process.cwd(), "storage"));
 
-const storageRoot = process.env.TEMPLATE_STORAGE_PATH
-  ? path.resolve(process.env.TEMPLATE_STORAGE_PATH)
-  : DEFAULT_STORAGE_ROOT;
-
-const tmpRoot = process.env.TEMPLATE_STORAGE_TMP_PATH
-  ? path.resolve(process.env.TEMPLATE_STORAGE_TMP_PATH)
-  : DEFAULT_TMP_ROOT;
+const storageRoot = path.resolve(path.join(BASE_STORAGE_ROOT, "template-bodies"));
+const tmpRoot = path.resolve(
+  process.env.TEMPLATE_STORAGE_TMP_ROOT ??
+    process.env.TEMPLATE_STORAGE_TMP_PATH ??
+    path.join(BASE_STORAGE_ROOT, "tmp")
+);
 
 const META_SUFFIX = ".json";
 
