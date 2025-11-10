@@ -122,6 +122,7 @@ model Document {
 
   title             String?
   templateCode      String
+  template          Template  @relation(fields: [templateCode], references: [code])
   templateVersion   String
   bodyText          String?   @db.Text
   requisites        Json?     // Гибкое хранение реквизитов
