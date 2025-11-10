@@ -274,7 +274,7 @@ function buildRequisitesParagraphsDocx(lines: string[]): Paragraph[] {
 }
 
 async function generateFromTemplateBody(params: {
-  templateBody: { filePath?: string | null; fileData?: Buffer | null; placeholders?: any };
+  templateBody: { filePath?: string | null; fileData?: Uint8Array | null; placeholders?: any };
   config: NormalizedConfig;
   template?: { nameRu: string; version: string } | null;
   user?: { firstName?: string | null; lastName?: string | null; middleName?: string | null } | null;
