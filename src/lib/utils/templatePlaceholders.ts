@@ -131,7 +131,8 @@ function aggregatePlaceholders(rawTags: DocxtemplaterTag[] | undefined, fallback
 }
 
 function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
-  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const slice = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  return slice instanceof ArrayBuffer ? slice : buffer.slice().buffer;
 }
 
 async function buildPreview(buffer: Buffer) {
