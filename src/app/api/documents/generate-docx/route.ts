@@ -288,11 +288,20 @@ async function generateFromTemplateBody(params: {
   if (params.templateBody.fileData && params.templateBody.fileData.length > 0) {
     templateContent = Buffer.from(params.templateBody.fileData);
   } else if (params.templateBody.filePath) {
-    const templatePath = resolveStoredPath(params.templateBody.filePath);
-    try {
-      templateContent = await fs.readFile(templatePath);
-    } catch (error) {
-      console.warn("Template file not accessible on disk, falling back to stored data");
+    if (typeof params.templateBody.filePath === 'string' && params.templateBody.filePath.startsWith('file://')) {
+      try {
+        const base64 = params.templateBody.filePath.replace('file://', '');
+        templateContent = Buffer.from(base64, 'base64');
+      } catch (error) {
+        console.warn("Failed to decode inline template body");
+      }
+    } else {
+      const templatePath = resolveStoredPath(params.templateBody.filePath);
+      try {
+        templateContent = await fs.readFile(templatePath);
+      } catch (error) {
+        console.warn("Template file not accessible on disk, falling back to stored data");
+      }
     }
   }
 
