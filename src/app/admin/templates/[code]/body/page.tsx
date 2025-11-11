@@ -404,17 +404,24 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Ошибка сохранения" }));
         const message = error.error || "Ошибка сохранения";
+        let hasDetails = false;
+
         if (error.details && Array.isArray(error.details)) {
           error.details.forEach((issue: any) => {
+            hasDetails = true;
+            const detailMessage = issue?.message || message;
             if (issue?.path?.length) {
-              toast.error(`${issue.path.join(".")}: ${issue.message}`);
+              toast.error(`${issue.path.join(".")}: ${detailMessage}`);
             } else {
-              toast.error(issue.message || message);
+              toast.error(detailMessage);
             }
           });
-        } else {
+        }
+
+        if (!hasDetails) {
           toast.error(message);
         }
+
         throw new Error(message);
       }
 
