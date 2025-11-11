@@ -203,6 +203,13 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
     const loadData = async () => {
       try {
         setLoadingStatus(true);
+        setTemplateBody(null);
+        setPreviewText("");
+        setUploadId(null);
+        setPlaceholders([]);
+        setHasPlaceholders(false);
+        setFields([]);
+        setUploadWarnings([]);
         const [templateRes, bodyRes] = await Promise.all([
           fetch(`/api/admin/templates/${templateCode}`, { credentials: "include" }),
           fetch(`/api/admin/templates/${templateCode}/body`, { credentials: "include" }),
