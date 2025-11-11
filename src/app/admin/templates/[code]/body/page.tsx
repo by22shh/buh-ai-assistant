@@ -403,7 +403,19 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Ошибка сохранения" }));
-        throw new Error(error.error || "Ошибка сохранения");
+        const message = error.error || "Ошибка сохранения";
+        if (error.details && Array.isArray(error.details)) {
+          error.details.forEach((issue: any) => {
+            if (issue?.path?.length) {
+              toast.error(`${issue.path.join(".")}: ${issue.message}`);
+            } else {
+              toast.error(issue.message || message);
+            }
+          });
+        } else {
+          toast.error(message);
+        }
+        throw new Error(message);
       }
 
       const data = await response.json();
