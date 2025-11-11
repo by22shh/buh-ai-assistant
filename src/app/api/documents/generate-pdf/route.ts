@@ -4,6 +4,9 @@ import { getCurrentUser } from '@/lib/auth-utils';
 import fontkit from '@pdf-lib/fontkit';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
+import mammoth from 'mammoth';
+import { prisma } from '@/lib/prisma';
+import { DEFAULT_APPEND_MODE, generateFromTemplateBody, parseConfig, type NormalizedConfig } from '@/lib/services/templateRenderer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -15,6 +18,11 @@ const FONT_BOLD_PATH = resolve(process.cwd(), 'public/fonts/DejaVuSans-Bold.ttf'
 // Cache fonts across invocations to reduce latency
 let cachedFontBytes: Uint8Array | null = null;
 let cachedFontBoldBytes: Uint8Array | null = null;
+
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  const slice = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  return slice instanceof ArrayBuffer ? slice : buffer.slice().buffer;
+}
 
 /**
  * POST /api/documents/generate-pdf
@@ -37,14 +45,81 @@ export async function POST(request: NextRequest) {
       bodyText,
       requisites,
       templateName,
+      templateCode,
+      documentId,
       organization
     } = await request.json();
 
-    if (!bodyText) {
-      return NextResponse.json(
-        { success: false, error: 'bodyText обязателен' },
-        { status: 400 }
-      );
+    let effectiveBodyText: string = bodyText || "";
+    let effectiveTemplateCode: string | null = templateCode || null;
+
+    if (!effectiveTemplateCode && documentId) {
+      const docRecord = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: { templateCode: true },
+      });
+      effectiveTemplateCode = docRecord?.templateCode ?? null;
+    }
+
+    let templateRecord: { nameRu: string; version: string } | null = null;
+    let templateBody: { filePath?: string | null; fileData?: Uint8Array | null; previewText?: string | null; placeholders?: any } | null = null;
+    let config: NormalizedConfig = { appendMode: DEFAULT_APPEND_MODE, placeholderBindings: [], fields: [] };
+
+    if (effectiveTemplateCode) {
+      const [template, bodyRecord, configRecord] = await Promise.all([
+        prisma.template.findUnique({
+          where: { code: effectiveTemplateCode },
+          select: { nameRu: true, version: true },
+        }),
+        prisma.templateBody.findUnique({
+          where: { templateCode: effectiveTemplateCode },
+          select: { filePath: true, fileData: true, previewText: true, placeholders: true },
+        }),
+        prisma.templateConfig.findUnique({
+          where: { templateCode: effectiveTemplateCode },
+          select: { requisitesConfig: true },
+        }),
+      ]);
+
+      if (template) {
+        templateRecord = template;
+      }
+
+      if (configRecord?.requisitesConfig) {
+        config = parseConfig(configRecord.requisitesConfig);
+      }
+
+      if (bodyRecord) {
+        templateBody = bodyRecord;
+      }
+    }
+
+    if ((!effectiveBodyText || effectiveBodyText === 'Текст документа не найден') && templateBody) {
+      try {
+        const docxBuffer = await generateFromTemplateBody({
+          templateBody,
+          config,
+          template: templateRecord,
+          user,
+          bodyText: effectiveBodyText,
+          requisites,
+          organization,
+          templateName,
+        });
+        const { value } = await mammoth.extractRawText({ arrayBuffer: bufferToArrayBuffer(docxBuffer) });
+        if (value && value.trim().length > 0) {
+          effectiveBodyText = value;
+        }
+      } catch (error) {
+        console.error('PDF template render error:', error);
+        if (templateBody.previewText) {
+          effectiveBodyText = templateBody.previewText;
+        }
+      }
+    }
+
+    if (!effectiveBodyText) {
+      effectiveBodyText = 'Текст документа не найден';
     }
 
     // Создаём новый PDF документ
@@ -159,7 +234,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Тело документа
-    const bodyLines = bodyText.split('\n').filter((line: string) => line.trim());
+    const bodyLines = effectiveBodyText.split('\n').filter((line: string) => line.trim());
 
     for (const line of bodyLines) {
       const trimmedLine = line.trim();
