@@ -185,7 +185,6 @@ async function buildPreview(buffer: Buffer) {
   try {
     const { value } = await mammoth.extractRawText({
       arrayBuffer: bufferToArrayBuffer(buffer),
-      includeTextBoxText: true,
     });
     const cleaned = normalizeWhitespace(value ?? "");
     if (cleaned) {
