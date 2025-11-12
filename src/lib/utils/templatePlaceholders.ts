@@ -135,14 +135,67 @@ function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
   return slice instanceof ArrayBuffer ? slice : buffer.slice().buffer;
 }
 
-async function buildPreview(buffer: Buffer) {
+const XML_ENTITY_MAP: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&apos;": "'",
+};
+
+function decodeXmlEntities(input: string) {
+  return input.replace(/&(amp|lt|gt|quot|apos);/g, (match) => XML_ENTITY_MAP[match] ?? match);
+}
+
+function normalizeWhitespace(text: string) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function fallbackPreviewFromXml(buffer: Buffer): string {
   try {
-    const { value } = await mammoth.extractRawText({ arrayBuffer: bufferToArrayBuffer(buffer) });
-    return value.trim();
+    const zip = new PizZip(buffer);
+    const documentXml = zip.file("word/document.xml")?.asText();
+    if (!documentXml) {
+      return "";
+    }
+
+    const withLineBreaks = documentXml
+      .replace(/<w:p[^>]*>/g, "\n")
+      .replace(/<w:br\s*\/>/g, "\n")
+      .replace(/<w:tab\s*\/>/g, "\t")
+      .replace(/<\/w:p>/g, "\n")
+      .replace(/<[^>]+>/g, " ");
+
+    const decoded = decodeXmlEntities(withLineBreaks);
+    const cleaned = normalizeWhitespace(decoded);
+
+    return cleaned;
   } catch (error) {
-    console.error("Failed to build preview", error);
+    console.error("Failed to build fallback preview", error);
     return "";
   }
+}
+
+async function buildPreview(buffer: Buffer) {
+  try {
+    const { value } = await mammoth.extractRawText(
+      { arrayBuffer: bufferToArrayBuffer(buffer) },
+      { includeTextBoxText: true }
+    );
+    const cleaned = normalizeWhitespace(value ?? "");
+    if (cleaned) {
+      return cleaned;
+    }
+  } catch (error) {
+    console.error("Failed to build preview via mammoth", error);
+  }
+
+  return fallbackPreviewFromXml(buffer);
 }
 
 export async function extractDocxPlaceholders(fileBuffer: Buffer): Promise<ExtractPlaceholdersResult> {
