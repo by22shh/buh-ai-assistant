@@ -5,6 +5,10 @@ let refreshPromise: Promise<Response> | null = null;
 // CSRF token для защиты от CSRF атак
 let csrfToken: string | null = null;
 
+export type ApiClientOptions = RequestInit & {
+  skipAuthRedirect?: boolean;
+};
+
 /**
  * Получить CSRF token из cookie
  */
@@ -134,24 +138,26 @@ async function attemptTokenRefresh(): Promise<boolean> {
  */
 export async function apiClient<T = any>(
   url: string,
-  options?: RequestInit,
+  options: ApiClientOptions = {},
   isRetry = false // Флаг для предотвращения бесконечных ретраев
 ): Promise<T> {
+  const { skipAuthRedirect = false, ...requestInit } = options ?? {};
+
   // Получаем CSRF token для state-changing операций
   // Приоритет: in-memory > cookie (для свежих токенов)
   const token = csrfToken || getCsrfToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options?.headers as Record<string, string>,
+    ...(requestInit.headers as Record<string, string>),
   };
   
   // Добавляем CSRF token для POST/PUT/DELETE/PATCH
-  if (token && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options?.method || 'GET')) {
+  if (token && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(requestInit.method || 'GET')) {
     headers['x-csrf-token'] = token;
   }
 
   const response = await fetch(url, {
-    ...options,
+    ...requestInit,
     headers,
     credentials: 'include', // Важно: отправляем cookies
   });
@@ -210,7 +216,7 @@ export async function apiClient<T = any>(
     }
 
     // Редиректы при ошибках авторизации/доступа
-    if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+    if (!skipAuthRedirect && typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
       const currentPath = window.location.pathname;
 
       // 403: доступ ограничен (например, истек пробный период) → на страницу триала
@@ -233,7 +239,10 @@ export async function apiClient<T = any>(
 
     const validationMsg = formatValidationError(errorBody);
     const generic = errorBody.error || errorBody.message || 'API request failed';
-    throw new Error(validationMsg || generic);
+    const error = new Error(validationMsg || generic) as Error & { status?: number; body?: any };
+    error.status = response.status;
+    error.body = errorBody;
+    throw error;
   }
 
   const data = await response.json();
@@ -249,20 +258,23 @@ export async function apiClient<T = any>(
  * Типизированные методы для удобства
  */
 export const api = {
-  get: <T = any>(url: string) => apiClient<T>(url, { method: 'GET' }),
+  get: <T = any>(url: string, options?: ApiClientOptions) =>
+    apiClient<T>(url, { ...(options ?? {}), method: 'GET' }),
 
-  post: <T = any>(url: string, data?: any) =>
+  post: <T = any>(url: string, data?: any, options?: ApiClientOptions) =>
     apiClient<T>(url, {
+      ...(options ?? {}),
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  put: <T = any>(url: string, data?: any) =>
+  put: <T = any>(url: string, data?: any, options?: ApiClientOptions) =>
     apiClient<T>(url, {
+      ...(options ?? {}),
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(url: string) =>
-    apiClient<T>(url, { method: 'DELETE' }),
+  delete: <T = any>(url: string, options?: ApiClientOptions) =>
+    apiClient<T>(url, { ...(options ?? {}), method: 'DELETE' }),
 };

@@ -1,25 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, resetAuthState } from '@/lib/api-client';
 import { toast } from 'sonner';
-import Cookies from 'js-cookie';
 
 import type { User } from '@/lib/types/user';
 
 export function useUser() {
   const queryClient = useQueryClient();
 
-  const hasToken = !!Cookies.get('auth-token');
-
   // Query для получения пользователя
   const {
     data: user = null,
     isLoading,
     error: queryError,
-  } = useQuery({
+  } = useQuery<User | null>({
     queryKey: ['user'],
-    queryFn: () => api.get<User>('/api/users/me'),
+    queryFn: async () => {
+      try {
+        return await api.get<User>('/api/users/me', { skipAuthRedirect: true });
+      } catch (err) {
+        if (err && typeof err === 'object' && 'status' in err && (err as { status?: number }).status === 401) {
+          return null;
+        }
+        throw err;
+      }
+    },
     retry: false, // Не retry если не авторизован
-    enabled: hasToken, // ВАЖНО: Запрос выполняется только если есть токен
   });
 
   const error = queryError instanceof Error ? queryError.message : null;
