@@ -160,6 +160,30 @@ function normalizeField(field: any): TemplateFieldMeta {
   };
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replacePlaceholderTokens(base: string, placeholders: PlaceholderBindingState[]): string {
+  if (!base) return "";
+
+  return placeholders.reduce((acc, placeholder) => {
+    const displayValue =
+      (placeholder.defaultValue && placeholder.defaultValue.trim()) ||
+      (placeholder.label && placeholder.label.trim()) ||
+      placeholder.name;
+
+    if (!displayValue) {
+      return acc;
+    }
+
+    const namePattern = escapeRegExp(placeholder.name);
+    const regex = new RegExp(`\\$\\{\\s*${namePattern}(?:[^}]*)?\\}`, "g");
+
+    return acc.replace(regex, displayValue);
+  }, base);
+}
+
 export default function AdminTemplateBodyPage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
   const { user, isLoading } = useUser();
@@ -192,6 +216,11 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
     });
     return map;
   }, [fields]);
+
+  const renderedPreview = useMemo(
+    () => replacePlaceholderTokens(previewText, placeholders),
+    [previewText, placeholders]
+  );
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "admin")) {
@@ -803,6 +832,12 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
                 rows={12}
                 placeholder="Предпросмотр тела документа"
               />
+          <div className="mt-4 space-y-2">
+            <Label>Предпросмотр с учётом настроенных реквизитов</Label>
+            <div className="rounded-md border bg-muted/50 p-3 text-sm whitespace-pre-wrap">
+              {renderedPreview || "Нет данных для отображения"}
+            </div>
+          </div>
             </CardContent>
           </Card>
         </div>

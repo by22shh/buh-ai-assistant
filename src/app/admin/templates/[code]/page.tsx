@@ -184,24 +184,6 @@ export default function AdminTemplateViewPage({ params }: { params: Promise<{ co
             </CardContent>
           </Card>
 
-          {/* Техническая информация */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Техническая информация</CardTitle>
-              <CardDescription>
-                Данные для разработчиков и системных администраторов
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium text-sm text-muted-foreground mb-1">JSON представление</h4>
-                <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto">
-                  {JSON.stringify(template, null, 2)}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Действия */}
           <Card>
             <CardHeader>
