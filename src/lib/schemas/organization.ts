@@ -12,6 +12,29 @@ import {
   validateFIO,
 } from '@/lib/utils/validators';
 
+const normalizeOptionalString = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  }
+
+  return value;
+};
+
+const normalizeRequiredString = (value: unknown) => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return value;
+};
+
+const optionalString = (schema: z.ZodString) =>
+  z.preprocess(normalizeOptionalString, schema.optional());
+
 /**
  * Схема для создания организации
  */
@@ -21,16 +44,16 @@ export const createOrganizationSchema = z.object({
 
   subject_type: z.enum(['legal_entity', 'sole_proprietor']),
 
-  name_full: z.string()
+  name_full: z.preprocess(normalizeRequiredString, z.string()
     .min(2, 'Полное наименование должно содержать минимум 2 символа')
-    .max(150, 'Полное наименование не может превышать 150 символов'),
+    .max(150, 'Полное наименование не может превышать 150 символов')),
 
-  name_short: z.string()
-    .max(80, 'Краткое наименование не может превышать 80 символов')
-    .optional()
-    .nullable(),
+  name_short: optionalString(
+    z.string()
+      .max(80, 'Краткое наименование не может превышать 80 символов')
+  ),
 
-  inn: z.string()
+  inn: z.preprocess(normalizeRequiredString, z.string()
     .regex(/^\d{10}$|^\d{12}$/, 'ИНН должен содержать 10 или 12 цифр')
     .refine(
       (val) => {
@@ -38,172 +61,154 @@ export const createOrganizationSchema = z.object({
         return validateINN(cleaned);
       },
       { message: 'Неверный формат ИНН или контрольная сумма' }
-    ),
+    )),
 
-  kpp: z.string()
-    .regex(/^\d{9}$/, 'КПП должен содержать 9 цифр')
-    .optional()
-    .nullable()
-    .refine(
-      (val) => !val || validateKPP(val),
-      { message: 'Неверный формат КПП' }
-    ),
+  kpp: optionalString(
+    z.string()
+      .regex(/^\d{9}$/, 'КПП должен содержать 9 цифр')
+      .refine(
+        (val) => validateKPP(val),
+        { message: 'Неверный формат КПП' }
+      )
+  ),
 
-  ogrn: z.string()
-    .regex(/^\d{13}$/, 'ОГРН должен содержать 13 цифр')
-    .optional()
-    .nullable()
-    .refine(
-      (val) => !val || validateOGRN(val),
-      { message: 'Неверный формат ОГРН или контрольная сумма' }
-    ),
+  ogrn: optionalString(
+    z.string()
+      .regex(/^\d{13}$/, 'ОГРН должен содержать 13 цифр')
+      .refine(
+        (val) => validateOGRN(val),
+        { message: 'Неверный формат ОГРН или контрольная сумма' }
+      )
+  ),
 
-  ogrnip: z.string()
-    .regex(/^\d{15}$/, 'ОГРНИП должен содержать 15 цифр')
-    .optional()
-    .nullable()
-    .refine(
-      (val) => !val || validateOGRNIP(val),
-      { message: 'Неверный формат ОГРНИП или контрольная сумма' }
-    ),
+  ogrnip: optionalString(
+    z.string()
+      .regex(/^\d{15}$/, 'ОГРНИП должен содержать 15 цифр')
+      .refine(
+        (val) => validateOGRNIP(val),
+        { message: 'Неверный формат ОГРНИП или контрольная сумма' }
+      )
+  ),
 
-  okpo: z.string()
-    .max(20, 'ОКПО не может превышать 20 символов')
-    .optional()
-    .nullable(),
+  okpo: optionalString(
+    z.string()
+      .max(20, 'ОКПО не может превышать 20 символов')
+  ),
 
-  okved: z.string()
-    .max(20, 'ОКВЭД не может превышать 20 символов')
-    .optional()
-    .nullable(),
+  okved: optionalString(
+    z.string()
+      .max(20, 'ОКВЭД не может превышать 20 символов')
+  ),
 
   // Адреса и контакты
-  address_legal: z.string()
+  address_legal: z.preprocess(normalizeRequiredString, z.string()
     .min(5, 'Юридический адрес должен содержать минимум 5 символов')
-    .max(200, 'Адрес не может превышать 200 символов'),
+    .max(200, 'Адрес не может превышать 200 символов')),
 
-  address_postal: z.string()
-    .max(200, 'Адрес не может превышать 200 символов')
-    .optional()
-    .nullable(),
+  address_postal: optionalString(
+    z.string()
+      .max(200, 'Адрес не может превышать 200 символов')
+  ),
 
-  phone: z.string()
-    .regex(/^\+?[0-9\s\-()]{10,20}$/, 'Неверный формат телефона')
-    .optional()
-    .nullable()
-    .refine(
-      (val) => !val || validatePhone(val),
-      { message: 'Неверный формат телефона. Ожидается формат +7XXXXXXXXXX' }
-    ),
+  phone: optionalString(
+    z.string()
+      .regex(/^\+?[0-9\s\-()]{10,20}$/, 'Неверный формат телефона')
+      .refine(
+        (val) => validatePhone(val),
+        { message: 'Неверный формат телефона. Ожидается формат +7XXXXXXXXXX' }
+      )
+  ),
 
-  email: z.string()
+  email: z.preprocess(normalizeRequiredString, z.string()
     .email('Неверный формат email')
     .refine(
       (val) => validateEmailExtended(val),
       { message: 'Email не соответствует требованиям (длина, формат домена)' }
-    ),
+    )),
 
-  website: z.string()
-    .url('Неверный формат URL')
-    .optional()
-    .nullable(),
+  website: optionalString(
+    z.string()
+      .url('Неверный формат URL')
+  ),
 
   // Руководитель и полномочия
-  head_title: z.string()
+  head_title: z.preprocess(normalizeRequiredString, z.string()
     .min(2, 'Должность руководителя обязательна')
-    .max(100, 'Должность не может превышать 100 символов'),
+    .max(100, 'Должность не может превышать 100 символов')),
 
-  head_fio: z.string()
+  head_fio: z.preprocess(normalizeRequiredString, z.string()
     .min(2, 'ФИО руководителя обязательно')
     .max(150, 'ФИО не может превышать 150 символов')
     .refine(
       (val) => validateFIO(val),
       { message: 'ФИО должно содержать три слова на кириллице (Имя Фамилия Отчество)' }
-    ),
+    )),
 
   authority_base: z.enum(['Устава', 'Доверенности']),
 
-  poa_number: z.string()
-    .max(50, 'Номер доверенности не может превышать 50 символов')
-    .optional()
-    .nullable(),
+  poa_number: optionalString(
+    z.string()
+      .max(50, 'Номер доверенности не может превышать 50 символов')
+  ),
 
-  poa_date: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Неверный формат даты')
-    .optional()
-    .nullable(),
+  poa_date: optionalString(
+    z.string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Неверный формат даты')
+  ),
 
   // Банковские реквизиты
-  bank_bik: z.string()
+  bank_bik: z.preprocess(normalizeRequiredString, z.string()
     .regex(/^\d{9}$/, 'БИК должен содержать 9 цифр')
     .refine(
       (val) => validateBIK(val),
       { message: 'Неверный формат БИК (код страны должен быть 04, код региона 01-99)' }
-    ),
+    )),
 
-  bank_name: z.string()
+  bank_name: z.preprocess(normalizeRequiredString, z.string()
     .min(2, 'Название банка обязательно')
-    .max(150, 'Название банка не может превышать 150 символов'),
+    .max(150, 'Название банка не может превышать 150 символов')),
 
-  bank_ks: z.string()
+  bank_ks: z.preprocess(normalizeRequiredString, z.string()
     .regex(/^\d{20}$/, 'Корреспондентский счёт должен содержать 20 цифр')
     // ВАЖНО: Проверка контрольной суммы временно отключена (реальные данные не проходят)
     // Валидация выполняет только проверку формата (20 цифр)
-    .refine(() => true),
+    .refine(() => true)),
 
-  bank_rs: z.string()
+  bank_rs: z.preprocess(normalizeRequiredString, z.string()
     .regex(/^\d{20}$/, 'Расчётный счёт должен содержать 20 цифр')
     // Аналогично отключаем проверку контрольной суммы
-    .refine(() => true),
+    .refine(() => true)),
 
   // Дополнительная информация
-  seal_note: z.string()
-    .max(200, 'Примечание о печати не может превышать 200 символов')
-    .optional()
-    .nullable(),
+  seal_note: optionalString(
+    z.string()
+      .max(200, 'Примечание о печати не может превышать 200 символов')
+  ),
 
-  notes: z.string()
-    .max(500, 'Заметки не могут превышать 500 символов')
-    .optional()
-    .nullable(),
+  notes: optionalString(
+    z.string()
+      .max(500, 'Заметки не могут превышать 500 символов')
+  ),
 })
-.refine(
-  (data) => {
-    const cleanedInn = data.inn.replace(/\s/g, '');
-    
-    // Для юридических лиц (legal_entity) должен быть ИНН-10, КПП и ОГРН
-    if (data.subject_type === 'legal_entity') {
-      if (cleanedInn.length !== 10) {
-        return false;
-      }
-      // Юридическим лицам обязателен КПП
-      if (!data.kpp) {
-        return false;
-      }
-      // ОГРН должен быть указан для юридических лиц
-      if (!data.ogrn) {
-        return false;
-      }
+.superRefine((data, ctx) => {
+  if (data.authority_base === 'Доверенности') {
+    if (!data.poa_number) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['poa_number'],
+        message: 'Укажите номер доверенности',
+      });
     }
-    
-    // Для ИП (sole_proprietor) должен быть ИНН-12 и ОГРНИП
-    if (data.subject_type === 'sole_proprietor') {
-      if (cleanedInn.length !== 12) {
-        return false;
-      }
-      // ОГРНИП должен быть указан для ИП
-      if (!data.ogrnip) {
-        return false;
-      }
+
+    if (!data.poa_date) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['poa_date'],
+        message: 'Укажите дату доверенности в формате ГГГГ-ММ-ДД',
+      });
     }
-    
-    return true;
-  },
-  {
-    message: 'Несоответствие типа субъекта: юридические лица должны иметь ИНН-10, КПП и ОГРН; ИП должны иметь ИНН-12 и ОГРНИП',
-    path: ['subject_type'],
   }
-);
+});
 
 /**
  * Схема для обновления организации (все поля опциональны)
