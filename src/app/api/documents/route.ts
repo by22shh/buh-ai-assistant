@@ -104,6 +104,20 @@ export async function POST(request: NextRequest) {
     // Валидация с Zod
     const validated = createDocumentSchema.parse(body);
 
+    let bodyTextPayload = validated.bodyText;
+
+    if (!bodyTextPayload || bodyTextPayload.trim().length === 0) {
+      const templateBody = await prisma.templateBody.findUnique({
+        where: { templateCode: validated.templateCode },
+        select: { previewText: true },
+      });
+
+      const previewText = templateBody?.previewText;
+      if (previewText && previewText.trim().length > 0) {
+        bodyTextPayload = previewText;
+      }
+    }
+
     const document = await prisma.document.create({
       data: {
         userId: user.id,
@@ -111,7 +125,7 @@ export async function POST(request: NextRequest) {
         title: validated.title || undefined,
         templateCode: validated.templateCode,
         templateVersion: validated.templateVersion,
-        bodyText: validated.bodyText || undefined,
+        bodyText: bodyTextPayload && bodyTextPayload.trim().length > 0 ? bodyTextPayload : undefined,
         requisites: validated.requisites || undefined,
         hasBodyChat: validated.hasBodyChat || false,
       },

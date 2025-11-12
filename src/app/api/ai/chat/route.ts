@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userPrompt, templateName, conversationHistory } = await request.json();
+    const { userPrompt, templateName, conversationHistory, currentBodyText } = await request.json();
 
     if (!userPrompt) {
       return NextResponse.json(
@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
 - Юридически корректные формулировки на русском языке
 - Нумерацию разделов и пунктов
 
+Если предоставлен текущий текст документа:
+- Используй его как основу
+- Вноси только те правки, о которых просит пользователь
+- Сохраняй важные условия, если иное не требуется явно
+- Возвращай обновлённую версию целиком, а не дифф
+
 Пример ПРАВИЛЬНОГО ответа для договора:
 "1. ПРЕДМЕТ ДОГОВОРА
 1.1. Исполнитель обязуется оказать Заказчику услуги по...
@@ -100,12 +106,27 @@ export async function POST(request: NextRequest) {
 
 Если пользователь загрузил файл — используй его как основу, но удали все реквизиты.`;
 
-    // Формируем историю сообщений
-    const messages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...(conversationHistory || []),
-      { role: 'user', content: userPrompt }
-    ];
+    const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
+
+    if (typeof currentBodyText === 'string' && currentBodyText.trim().length > 0) {
+      messages.push({
+        role: 'user',
+        content: `Это текущая версия документа. Сохраняй структуру и формулировки, если не нужно иное. Вноси только запрошенные изменения и возвращай полностью обновлённый текст:\n\n${currentBodyText}`,
+      });
+    }
+
+    if (Array.isArray(conversationHistory)) {
+      conversationHistory.forEach((item: ChatMessage) => {
+        if (item?.role && item?.content) {
+          messages.push({
+            role: item.role,
+            content: item.content,
+          });
+        }
+      });
+    }
+
+    messages.push({ role: 'user', content: userPrompt });
 
     const completion = await openai.chat.completions.create({
       model,

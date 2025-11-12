@@ -36,6 +36,75 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
   const { user, isLoading: userLoading } = useUser();
   const { updateDocument } = useDocuments();
 
+  const BASE_TEMPLATE_MESSAGE_ID = "base_template";
+
+  const [isDocumentLoading, setIsDocumentLoading] = useState(true);
+  const [documentLoadError, setDocumentLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDocumentBody() {
+      if (!docId) return;
+
+      try {
+        setIsDocumentLoading(true);
+        setDocumentLoadError(null);
+
+        const response = await fetch(`/api/documents/${docId}`, {
+          credentials: "include",
+        });
+
+        if (response.status === 404) {
+          toast.error("Документ не найден");
+          router.push("/templates");
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("Failed to load document");
+        }
+
+        const documentData = await response.json();
+        const textFromTemplate = typeof documentData.bodyText === "string" ? documentData.bodyText : "";
+
+        setBodyText(textFromTemplate);
+
+        if (textFromTemplate.trim().length > 0) {
+          setMessages((prev) => {
+            const hasBase = prev.some((msg) => msg.id === BASE_TEMPLATE_MESSAGE_ID);
+            if (hasBase) return prev;
+
+            const baseMessage: Message = {
+              id: BASE_TEMPLATE_MESSAGE_ID,
+              role: "assistant",
+              content: `Исходный текст шаблона:\n\n${textFromTemplate}`,
+              timestamp: new Date(),
+            };
+
+            if (prev.length === 0) {
+              return [baseMessage];
+            }
+
+            if (prev[0]?.id === "welcome") {
+              return [prev[0], baseMessage, ...prev.slice(1)];
+            }
+
+            return [baseMessage, ...prev];
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load document body", error);
+        setDocumentLoadError(
+          "Не удалось загрузить тело документа. Попробуйте обновить страницу или обратитесь к администратору."
+        );
+        toast.error("Не удалось загрузить тело документа");
+      } finally {
+        setIsDocumentLoading(false);
+      }
+    }
+
+    loadDocumentBody();
+  }, [docId, router]);
+
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/auth/login");
@@ -48,14 +117,20 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
 
     // Приветственное сообщение от ИИ
     if (user && templateCode) {
-      setMessages([
-        {
+      setMessages((prev) => {
+        const hasWelcome = prev.some((message) => message.id === "welcome");
+        if (hasWelcome) return prev;
+
+        const welcomeMessage: Message = {
           id: "welcome",
           role: "assistant",
-          content: "Здравствуйте! Я помогу составить **основной текст (тело) документа**.\n\n📝 Опишите содержание: предмет договора, условия, обязательства и т.п.\n\n⚠️ **Важно:** Не указывайте реквизиты организаций (ИНН, адреса, ФИО и т.п.) — они заполняются на следующем шаге.\n\n📎 Можете прикрепить файл (.docx, .pdf, .txt, .md) с примером текста.",
+          content:
+            "Здравствуйте! Я помогу составить **основной текст (тело) документа**.\n\n📝 Опишите содержание: предмет договора, условия, обязательства и т.п.\n\n⚠️ **Важно:** Не указывайте реквизиты организаций (ИНН, адреса, ФИО и т.п.) — они заполняются на следующем шаге.\n\n📎 Можете прикрепить файл (.docx, .pdf, .txt, .md) с примером текста.",
           timestamp: new Date(),
-        },
-      ]);
+        };
+
+        return [welcomeMessage, ...prev];
+      });
     }
   }, [user, userLoading, router, templateCode]);
 
@@ -109,6 +184,11 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
   const handleSend = async () => {
     if (!input.trim()) return;
 
+    if (isDocumentLoading) {
+      toast.error("Дождитесь загрузки текста шаблона");
+      return;
+    }
+
     const userMessage = input.trim();
     setInput("");
 
@@ -133,8 +213,8 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
     try {
       // Формируем историю для контекста
       const conversationHistory = messages
-        .filter(m => m.id !== 'welcome')
-        .map(m => ({ role: m.role, content: m.content }));
+        .filter((m) => m.id !== "welcome" && m.id !== BASE_TEMPLATE_MESSAGE_ID)
+        .map((m) => ({ role: m.role, content: m.content }));
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -142,7 +222,8 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         body: JSON.stringify({
           userPrompt: userMessage,
           templateName: effectiveTemplate.nameRu,
-          conversationHistory
+          conversationHistory,
+          currentBodyText: bodyText,
         })
       });
 
@@ -238,8 +319,8 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
     // Обработка файла через ИИ
     try {
       const conversationHistory = messages
-        .filter(m => m.id !== 'welcome')
-        .map(m => ({ role: m.role, content: m.content }));
+        .filter((m) => m.id !== "welcome" && m.id !== BASE_TEMPLATE_MESSAGE_ID)
+        .map((m) => ({ role: m.role, content: m.content }));
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -247,7 +328,8 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         body: JSON.stringify({
           userPrompt: `Обработай следующий текст и составь на его основе документ "${effectiveTemplate.nameRu}":\n\n${fileText}`,
           templateName: effectiveTemplate.nameRu,
-          conversationHistory
+          conversationHistory,
+          currentBodyText: bodyText,
         })
       });
 
@@ -336,6 +418,12 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {documentLoadError && (
+        <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 text-xs md:text-sm">
+          {documentLoadError}
+        </div>
+      )}
+
       {/* Лента чата */}
       <div className="flex-1 overflow-y-auto">
         <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
@@ -393,7 +481,7 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
               variant="outline"
               size="icon"
               onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
+              disabled={loading || isDocumentLoading}
               title="Прикрепить файл"
             >
               <Paperclip className="w-4 h-4" />
@@ -410,10 +498,10 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
                   handleSend();
                 }
               }}
-              disabled={loading}
+              disabled={loading || isDocumentLoading}
             />
 
-            <Button onClick={handleSend} disabled={loading || !input.trim()} size="icon">
+            <Button onClick={handleSend} disabled={loading || isDocumentLoading || !input.trim()} size="icon">
               <Send className="w-4 h-4" />
             </Button>
           </div>
@@ -426,7 +514,7 @@ export default function DocumentBodyChatPage({ params }: { params: Promise<{ id:
 
             <Button
               onClick={handleProceedToRequisites}
-              disabled={!bodyText}
+              disabled={!bodyText || isDocumentLoading}
               size="sm"
               className={`w-full sm:w-auto sm:size-default ${!bodyText ? "opacity-50 cursor-not-allowed" : ""}`}
             >
