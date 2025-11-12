@@ -832,14 +832,22 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
                 rows={12}
                 placeholder="Предпросмотр тела документа"
               />
-          <div className="mt-4 space-y-2">
-            <Label>Предпросмотр с учётом настроенных реквизитов</Label>
-            <div className="rounded-md border bg-muted/50 p-3 text-sm whitespace-pre-wrap">
-              {renderedPreview || "Нет данных для отображения"}
-            </div>
-          </div>
             </CardContent>
           </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Предпросмотр с учётом настроенных реквизитов</CardTitle>
+          <CardDescription>
+            Показано, как текст будет выглядеть после подстановки отображаемых названий и постоянных значений
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border bg-muted/50 p-3 text-sm whitespace-pre-wrap">
+            {renderedPreview || "Нет данных для отображения"}
+          </div>
+        </CardContent>
+      </Card>
         </div>
       </main>
     </div>
