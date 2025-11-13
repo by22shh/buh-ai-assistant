@@ -329,7 +329,7 @@ export default function AdminTemplateEditPage({ params }: { params: Promise<{ co
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, hasBodyChat: checked as boolean }))}
                 />
                 <Label htmlFor="hasBodyChat">
-                  Включить чат с ИИ для генерации текста
+                  Включить чат с ИИ для правок текста
                 </Label>
               </div>
 

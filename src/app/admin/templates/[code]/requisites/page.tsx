@@ -231,7 +231,14 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         const data = await response.json();
         setConfig(data);
         if (data.requisitesConfig && data.requisitesConfig.fields) {
-          setFields(data.requisitesConfig.fields);
+          const storedFields = data.requisitesConfig.fields as RequisiteField[];
+          const orderedFields = [...storedFields]
+            .map((field, index) => ({
+              ...field,
+              order: field.order ?? index + 1,
+            }))
+            .sort((a, b) => a.order - b.order);
+          setFields(orderedFields);
         }
       } else if (response.status === 404) {
         // Конфигурация не найдена - используем стандартные поля
@@ -249,13 +256,13 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Фильтруем только включенные поля
-      const enabledFields = fields.filter(field => field.enabled);
+      const sortedFields = [...fields].sort((a, b) => a.order - b.order);
+      const enabledCount = fields.filter(field => field.enabled).length;
       
       const configData = {
         templateCode,
         requisitesConfig: {
-          fields: enabledFields.sort((a, b) => a.order - b.order),
+          fields: sortedFields,
           version: template?.version || '1.0',
           lastUpdated: new Date().toISOString(),
           updatedBy: user?.email || 'admin'
@@ -264,7 +271,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
 
       await api.put(`/api/admin/template-configs/${templateCode}`, configData);
 
-      toast.success(`Конфигурация сохранена (${enabledFields.length} полей)`);
+      toast.success(`Конфигурация сохранена (активно ${enabledCount} из ${fields.length} полей)`);
       await loadRequisitesConfig(); // Перезагружаем данные
     } catch (error) {
       console.error('Error saving requisites config:', error);

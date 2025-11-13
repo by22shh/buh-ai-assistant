@@ -277,11 +277,11 @@ export default function AdminTemplateCreatePage() {
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, hasBodyChat: checked as boolean }))}
                 />
                 <Label htmlFor="hasBodyChat">
-                  Включить чат с ИИ для генерации текста
+                  Включить чат с ИИ для правок текста
                 </Label>
               </div>
               <p className="text-sm text-muted-foreground ml-6">
-                Пользователи смогут использовать ИИ для создания содержимого документа
+                Пользователи смогут использовать ИИ для редактирования и доработки текста документа
               </p>
 
               <div className="flex items-center space-x-2">
