@@ -14,7 +14,7 @@ import { useDocuments } from "@/hooks/useDocuments";
 // TODO: Реализовать API для получения конфигурации реквизитов шаблонов
 // import { mockTemplateRequisites } from "@/lib/store/mockData";
 import { getTemplateByCode } from "@/lib/data/templates";
-import type { RequisiteField } from "@/lib/types/templateRequisites";
+import { FIELD_TYPES, type RequisiteField } from "@/lib/types/templateRequisites";
 import { toast } from "sonner";
 
 export default function DocumentRequisitesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -56,11 +56,56 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
           return null;
         })
         .then(data => {
-          if (data?.requisitesConfig?.fields && Array.isArray(data.requisitesConfig.fields)) {
-            // Сортируем по order
-            const sortedFields = [...data.requisitesConfig.fields].sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
-            setConfiguredFields(sortedFields);
+          if (!data?.requisitesConfig?.fields || !Array.isArray(data.requisitesConfig.fields)) {
+            setConfiguredFields([]);
+            return;
           }
+
+          const normalizedFields: RequisiteField[] = data.requisitesConfig.fields
+            .filter((field: any) => field.enabled !== false)
+            .map((field: any, index: number) => {
+              const rawCode = field.code ?? field.name ?? `field_${index + 1}`;
+              const rawType = field.fieldType ?? field.type ?? "text";
+              const safeType = (FIELD_TYPES as readonly string[]).includes(rawType)
+                ? (rawType as RequisiteField["fieldType"])
+                : "text";
+
+              let options: RequisiteField["options"] = undefined;
+              if (Array.isArray(field.options)) {
+                options = field.options.map((option: any) => {
+                  if (typeof option === "string") {
+                    return { value: option, label: option };
+                  }
+                  if (option && typeof option.value === "string" && typeof option.label === "string") {
+                    return option;
+                  }
+                  return null;
+                }).filter(Boolean) as RequisiteField["options"];
+              }
+
+              const validation =
+                field.validation && typeof field.validation === "object"
+                  ? field.validation
+                  : undefined;
+
+              return {
+                id: field.id ?? rawCode,
+                code: rawCode,
+                label: field.label ?? rawCode,
+                fieldType: safeType,
+                required: Boolean(field.required),
+                autofillFromOrg: Boolean(field.autofillFromOrg),
+                placeholder: typeof field.placeholder === "string" ? field.placeholder : "",
+                helpText: typeof field.helpText === "string" ? field.helpText : "",
+                validation,
+                options,
+                order: typeof field.order === "number" ? field.order : index + 1,
+              };
+            })
+            .filter((field: any) => field.enabled !== false)
+            .sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
+
+          setConfiguredFields(normalizedFields);
         })
         .catch(err => {
           // Ошибка загрузки конфигурации - это не критично, используем fallback
