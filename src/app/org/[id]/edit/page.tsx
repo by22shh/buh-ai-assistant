@@ -71,7 +71,7 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
       // Заполняем форму данными организации
       setFormData({
         is_default: org.is_default || false,
-        subject_type: org.subject_type,
+        subject_type: org.subject_type || "legal_entity",
         name_full: org.name_full,
         name_short: org.name_short,
         inn: org.inn,
@@ -219,7 +219,7 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
               <div>
                 <Label htmlFor="subject_type">Тип субъекта *</Label>
                 <Select
-                  value={formData.subject_type}
+                  value={formData.subject_type || "legal_entity"}
                   onValueChange={(value) => {
                     const newType = value as SubjectType;
                     // Очищаем поля, которые не нужны для нового типа
