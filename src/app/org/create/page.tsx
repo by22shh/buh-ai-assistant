@@ -166,9 +166,26 @@ export default function CreateOrganizationPage() {
                 <Label htmlFor="subject_type">Тип субъекта *</Label>
                 <Select
                   value={formData.subject_type}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, subject_type: value as SubjectType })
-                  }
+                  onValueChange={(value) => {
+                    const newType = value as SubjectType;
+                    // Очищаем поля, которые не нужны для нового типа
+                    if (newType === "sole_proprietor") {
+                      // Для ИП очищаем КПП и ОГРН
+                      setFormData({ 
+                        ...formData, 
+                        subject_type: newType,
+                        kpp: "",
+                        ogrn: ""
+                      });
+                    } else {
+                      // Для юрлица очищаем ОГРНИП
+                      setFormData({ 
+                        ...formData, 
+                        subject_type: newType,
+                        ogrnip: ""
+                      });
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />

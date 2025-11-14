@@ -191,6 +191,36 @@ export const createOrganizationSchema = z.object({
   ),
 })
 .superRefine((data, ctx) => {
+  // Проверка зависимостей от типа субъекта
+  if (data.subject_type === 'legal_entity') {
+    // Для юрлица КПП обязателен
+    if (!data.kpp || data.kpp.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['kpp'],
+        message: 'КПП обязателен для юридического лица',
+      });
+    }
+    // Для юрлица ОГРН обязателен
+    if (!data.ogrn || data.ogrn.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ogrn'],
+        message: 'ОГРН обязателен для юридического лица',
+      });
+    }
+  } else if (data.subject_type === 'sole_proprietor') {
+    // Для ИП ОГРНИП обязателен
+    if (!data.ogrnip || data.ogrnip.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ogrnip'],
+        message: 'ОГРНИП обязателен для индивидуального предпринимателя',
+      });
+    }
+  }
+
+  // Проверка доверенности
   if (data.authority_base === 'Доверенности') {
     if (!data.poa_number) {
       ctx.addIssue({
