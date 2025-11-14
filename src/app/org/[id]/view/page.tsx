@@ -186,7 +186,6 @@ export default function OrganizationViewPage({ params }: { params: Promise<{ id:
               <CardTitle>Служебная информация</CardTitle>
             </CardHeader>
             <CardContent>
-              <InfoRow label="ID" value={organization.id} />
               <InfoRow
                 label="Дата создания"
                 value={organization.createdAt ? new Date(organization.createdAt).toLocaleString("ru-RU") : undefined}
