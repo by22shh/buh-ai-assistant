@@ -57,58 +57,86 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
           return null;
         })
         .then(data => {
-          if (!data?.requisitesConfig?.fields || !Array.isArray(data.requisitesConfig.fields)) {
-            setConfiguredFields([]);
-            return;
+          const allFields: RequisiteField[] = [];
+
+          // Загружаем поля из настроенных реквизитов
+          if (data?.requisitesConfig?.fields && Array.isArray(data.requisitesConfig.fields)) {
+            const normalizedFields: RequisiteField[] = data.requisitesConfig.fields
+              .filter((field: any) => field.enabled !== false)
+              .map((field: any, index: number) => {
+                const rawCode = field.code ?? field.name ?? `field_${index + 1}`;
+                const rawType = field.fieldType ?? field.type ?? "text";
+                const safeType = (FIELD_TYPES as readonly string[]).includes(rawType)
+                  ? (rawType as RequisiteField["fieldType"])
+                  : "text";
+
+                let options: RequisiteField["options"] = undefined;
+                if (Array.isArray(field.options)) {
+                  options = field.options.map((option: any) => {
+                    if (typeof option === "string") {
+                      return { value: option, label: option };
+                    }
+                    if (option && typeof option.value === "string" && typeof option.label === "string") {
+                      return option;
+                    }
+                    return null;
+                  }).filter(Boolean) as RequisiteField["options"];
+                }
+
+                const validation =
+                  field.validation && typeof field.validation === "object"
+                    ? field.validation
+                    : undefined;
+
+                return {
+                  id: field.id ?? rawCode,
+                  code: rawCode,
+                  label: field.label ?? rawCode,
+                  fieldType: safeType,
+                  required: Boolean(field.required),
+                  autofillFromOrg: true,
+                  placeholder: typeof field.placeholder === "string" ? field.placeholder : "",
+                  helpText: typeof field.helpText === "string" ? field.helpText : "",
+                  validation,
+                  options,
+                  order: typeof field.order === "number" ? field.order : index + 1,
+                };
+              })
+              .filter((field: any) => field.enabled !== false)
+              .sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
+
+            allFields.push(...normalizedFields);
           }
 
-          const normalizedFields: RequisiteField[] = data.requisitesConfig.fields
-            .filter((field: any) => field.enabled !== false)
-            .map((field: any, index: number) => {
-              const rawCode = field.code ?? field.name ?? `field_${index + 1}`;
-              const rawType = field.fieldType ?? field.type ?? "text";
-              const safeType = (FIELD_TYPES as readonly string[]).includes(rawType)
-                ? (rawType as RequisiteField["fieldType"])
-                : "text";
-
-              let options: RequisiteField["options"] = undefined;
-              if (Array.isArray(field.options)) {
-                options = field.options.map((option: any) => {
-                  if (typeof option === "string") {
-                    return { value: option, label: option };
-                  }
-                  if (option && typeof option.value === "string" && typeof option.label === "string") {
-                    return option;
-                  }
-                  return null;
-                }).filter(Boolean) as RequisiteField["options"];
-              }
-
-              const validation =
-                field.validation && typeof field.validation === "object"
-                  ? field.validation
-                  : undefined;
+          // Загружаем плейсхолдеры из тела шаблона
+          if (data?.requisitesConfig?.placeholderBindings && Array.isArray(data.requisitesConfig.placeholderBindings)) {
+            const placeholderFields: RequisiteField[] = data.requisitesConfig.placeholderBindings.map((binding: any, index: number) => {
+              // Используем name плейсхолдера как code, чтобы можно было подставить значение
+              const placeholderCode = binding.name || `placeholder_${index + 1}`;
+              const placeholderLabel = binding.label || binding.name || placeholderCode;
 
               return {
-                id: field.id ?? rawCode,
-                code: rawCode,
-                label: field.label ?? rawCode,
-                fieldType: safeType,
-                required: Boolean(field.required),
-                // autofillFromOrg больше не используется - пользователь сам выбирает, что подтягивать
-                // Все поля из шаблона могут быть подтянуты из организации, если они там есть
-                autofillFromOrg: true, // Всегда true, так как пользователь сам решает, что подтягивать
-                placeholder: typeof field.placeholder === "string" ? field.placeholder : "",
-                helpText: typeof field.helpText === "string" ? field.helpText : "",
-                validation,
-                options,
-                order: typeof field.order === "number" ? field.order : index + 1,
+                id: `placeholder_${placeholderCode}`,
+                code: placeholderCode,
+                label: placeholderLabel,
+                fieldType: "text" as RequisiteField["fieldType"],
+                required: false,
+                autofillFromOrg: true, // Пользователь может подтянуть из организации
+                placeholder: "",
+                helpText: `Плейсхолдер из тела шаблона: ${binding.name}`,
+                validation: undefined,
+                options: undefined,
+                order: 1000 + index, // Плейсхолдеры идут после обычных полей
               };
-            })
-            .filter((field: any) => field.enabled !== false)
-            .sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
+            });
 
-          setConfiguredFields(normalizedFields);
+            allFields.push(...placeholderFields);
+          }
+
+          // Сортируем все поля по order
+          allFields.sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
+
+          setConfiguredFields(allFields);
         })
         .catch(err => {
           // Ошибка загрузки конфигурации - это не критично, используем fallback
