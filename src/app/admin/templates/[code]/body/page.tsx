@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/useUser";
 import { toast } from "sonner";
-import { FIELD_TYPES, type FieldType } from "@/lib/types/templateRequisites";
-import { PRESET_FIELDS } from "@/lib/types/templateRequisites";
+import { type FieldType } from "@/lib/types/templateRequisites";
 import { cn } from "@/lib/utils";
 
 interface TemplateFieldMeta {
@@ -64,13 +63,6 @@ interface TemplateBodyRecord {
   placeholders: PlaceholderBindingState[] | null;
 }
 
-const SOURCE_OPTIONS: { value: PlaceholderSource; label: string }[] = [
-  { value: "requisite", label: "Реквизиты шаблона" },
-  { value: "organization", label: "Данные организации" },
-  { value: "system", label: "Системные данные" },
-  { value: "custom", label: "Фиксированное значение" },
-];
-
 const APPEND_MODE_OPTIONS: { value: "auto" | "disabled"; label: string; description: string }[] = [
   {
     value: "auto",
@@ -94,17 +86,6 @@ function formatBytes(bytes: number) {
     index += 1;
   }
   return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function getDefaultFieldType(fieldCode?: string, fieldsMap?: Map<string, TemplateFieldMeta>): FieldType {
-  if (fieldCode && fieldsMap?.has(fieldCode)) {
-    const existing = fieldsMap.get(fieldCode);
-    const match = FIELD_TYPES.find((type) => type === existing?.type);
-    if (match) {
-      return match;
-    }
-  }
-  return "text";
 }
 
 function mapUploadPlaceholder(
@@ -503,8 +484,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
   }
 
   if (!user || user.role !== "admin") return null;
-
-  const presetFieldCodes = new Set(PRESET_FIELDS.map((field) => field.code));
 
   return (
     <div className="min-h-screen bg-muted/50">
