@@ -345,10 +345,10 @@ export default function CreateOrganizationPage() {
                 <Label htmlFor="website">Веб-сайт</Label>
                 <Input
                   id="website"
-                  type="url"
+                  type="text"
                   value={formData.website || ""}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://example.ru"
+                  placeholder="example.ru или https://example.ru"
                 />
               </div>
             </CardContent>

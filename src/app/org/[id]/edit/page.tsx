@@ -415,10 +415,10 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
                 <Label htmlFor="website">Веб-сайт</Label>
                 <Input
                   id="website"
-                  type="url"
+                  type="text"
                   value={formData.website || ""}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://example.com"
+                  placeholder="example.ru или https://example.ru"
                 />
               </div>
             </CardContent>

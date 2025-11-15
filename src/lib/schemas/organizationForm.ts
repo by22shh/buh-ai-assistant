@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validateWebsite } from '@/lib/utils/validators';
 
 /**
  * Схема для формы создания/редактирования организации
@@ -65,7 +66,10 @@ export const organizationFormSchema = z.object({
     .min(1, 'Email обязателен'),
 
   website: z.string()
-    .url('Неверный формат URL')
+    .refine(
+      (val) => !val || val === '' || validateWebsite(val),
+      { message: 'Неверный формат URL или доменного имени' }
+    )
     .optional()
     .or(z.literal('')),
 

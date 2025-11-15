@@ -298,6 +298,58 @@ export function validateEmailExtended(email: string): boolean {
 }
 
 /**
+ * Валидация URL (принимает как полный URL, так и доменное имя без протокола)
+ */
+export function validateWebsite(website: string): boolean {
+  if (!website || typeof website !== 'string') return false;
+  
+  // Удаляем пробелы в начале и конце
+  const trimmed = website.trim();
+  if (trimmed === '') return false;
+  
+  // Если URL начинается с протокола (http://, https://, ftp:// и т.д.)
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) {
+    try {
+      new URL(trimmed);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  
+  // Если URL без протокола, проверяем формат доменного имени
+  // Принимаем: example.com, www.example.com, subdomain.example.com, example.ru, localhost и т.д.
+  // Не принимаем: протоколы, пути, параметры (все это должно быть в полном URL)
+  const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^localhost$|^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/;
+  
+  // Проверяем, что нет пробелов, двоеточий (кроме протокола), слешей и других спецсимволов
+  if (/[\s:\/?#\[\]@!$&'()*+,;=]/.test(trimmed)) {
+    // Если есть спецсимволы, но нет протокола - это невалидный формат
+    return false;
+  }
+  
+  return domainRegex.test(trimmed);
+}
+
+/**
+ * Нормализация URL (добавляет https:// если протокол отсутствует)
+ */
+export function normalizeWebsite(website: string): string {
+  if (!website || typeof website !== 'string') return '';
+  
+  const trimmed = website.trim();
+  if (trimmed === '') return '';
+  
+  // Если уже есть протокол, возвращаем как есть
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Добавляем https:// если протокол отсутствует
+  return `https://${trimmed}`;
+}
+
+/**
  * Валидация российского почтового индекса
  */
 export function validatePostalCode(code: string): boolean {

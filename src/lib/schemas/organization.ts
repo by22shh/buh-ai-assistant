@@ -10,6 +10,8 @@ import {
   validatePhone,
   validateEmailExtended,
   validateFIO,
+  validateWebsite,
+  normalizeWebsite,
 } from '@/lib/utils/validators';
 
 const normalizeOptionalString = (value: unknown) => {
@@ -34,6 +36,29 @@ const normalizeRequiredString = (value: unknown) => {
 
 const optionalString = (schema: z.ZodString) =>
   z.preprocess(normalizeOptionalString, schema.optional());
+
+const normalizeWebsiteOptional = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return undefined;
+    }
+    // Валидируем исходное значение перед нормализацией
+    // Если значение валидно, нормализуем (добавляем https:// если протокол отсутствует)
+    if (validateWebsite(trimmed)) {
+      return normalizeWebsite(trimmed);
+    }
+    // Если значение невалидно, возвращаем как есть
+    // Валидация в refine проверит и вернет ошибку
+    return trimmed;
+  }
+
+  return value;
+};
 
 /**
  * Схема для создания организации
@@ -126,9 +151,31 @@ export const createOrganizationSchema = z.object({
       { message: 'Email не соответствует требованиям (длина, формат домена)' }
     )),
 
-  website: optionalString(
+  website: z.preprocess(
+    normalizeWebsiteOptional,
     z.string()
-      .url('Неверный формат URL')
+      .refine(
+        (val) => {
+          // Если значение пустое или undefined, пропускаем (поле опциональное)
+          if (!val || val === '') return true;
+          // Если значение было валидно в preprocess, оно было нормализовано и должно быть валидным URL
+          // Если значение было невалидно в preprocess, оно возвращено как есть
+          // Проверяем через new URL (для нормализованных значений с протоколом)
+          try {
+            new URL(val);
+            return true;
+          } catch {
+            // Если не удалось создать URL, проверяем исходное значение через validateWebsite
+            // Это может быть случай, когда значение не было нормализовано (было невалидно в preprocess)
+            // Но validateWebsite может не пройти для значений с протоколом, поэтому проверяем значение без протокола
+            const withoutProtocol = val.replace(/^https?:\/\//, '');
+            return validateWebsite(withoutProtocol);
+          }
+        },
+        { message: 'Неверный формат URL или доменного имени' }
+      )
+      .optional()
+      .or(z.literal(''))
   ),
 
   // Руководитель и полномочия
