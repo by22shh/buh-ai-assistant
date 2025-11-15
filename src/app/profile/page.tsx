@@ -273,9 +273,6 @@ export default function ProfilePage() {
                             disabled
                             className="bg-muted cursor-not-allowed"
                           />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Email нельзя изменить
-                          </p>
                         </div>
                       </div>
                     </div>
