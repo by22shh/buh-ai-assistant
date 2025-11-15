@@ -14,6 +14,11 @@ export const profileFormSchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  phone: z.string()
+    .regex(/^\+?[0-9]{10,15}$/, 'Неверный формат телефона')
+    .optional()
+    .or(z.literal('')),
+
   email: z.string()
     .email('Неверный формат email')
     .optional()

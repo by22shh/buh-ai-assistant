@@ -32,6 +32,7 @@ export default function ProfilePage() {
     defaultValues: {
       firstName: "",
       lastName: "",
+      phone: "",
       email: "",
       position: "",
       company: "",
@@ -48,6 +49,7 @@ export default function ProfilePage() {
       reset({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
+        phone: user.phone || "",
         email: user.email || "",
         position: user.position || "",
         company: user.company || "",
@@ -97,6 +99,7 @@ export default function ProfilePage() {
     reset({
       firstName: user.firstName || "",
       lastName: user.lastName || "",
+      phone: user.phone || "",
       email: user.email || "",
       position: user.position || "",
       company: user.company || "",
@@ -158,13 +161,35 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-muted-foreground" />
+              {editing ? (
                 <div>
-                  <p className="text-sm text-muted-foreground">Телефон</p>
-                  <p className="font-medium">{user.phone}</p>
+                  <Label htmlFor="phone">Телефон</Label>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+7 (999) 123-45-67"
+                        {...register("phone")}
+                      />
+                      {errors.phone && (
+                        <p className="text-sm text-destructive mt-1">
+                          {errors.phone.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Phone className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Телефон</p>
+                    <p className="font-medium">{user.phone || "—"}</p>
+                  </div>
+                </div>
+              )}
 
               {user.demoStatus && (
                 <div className="p-4 bg-muted rounded-lg">
@@ -245,7 +270,14 @@ export default function ProfilePage() {
                             type="email"
                             placeholder="ivan@example.com"
                             {...register("email")}
+                            disabled={user.role === "admin"}
+                            className={user.role === "admin" ? "bg-muted cursor-not-allowed" : ""}
                           />
+                          {user.role === "admin" && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Администратор не может изменять email
+                            </p>
+                          )}
                           {errors.email && (
                             <p className="text-sm text-destructive mt-1">
                               {errors.email.message}

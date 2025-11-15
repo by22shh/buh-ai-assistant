@@ -14,6 +14,11 @@ export const updateUserSchema = z.object({
     .optional()
     .nullable(),
 
+  phone: z.string()
+    .regex(/^\+?[0-9]{10,15}$/, 'Неверный формат телефона')
+    .optional()
+    .nullable(),
+
   email: z.string()
     .email('Неверный формат email')
     .optional()
