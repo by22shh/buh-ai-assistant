@@ -269,20 +269,13 @@ export default function ProfilePage() {
                             id="email"
                             type="email"
                             placeholder="ivan@example.com"
-                            {...register("email")}
-                            disabled={user.role === "admin"}
-                            className={user.role === "admin" ? "bg-muted cursor-not-allowed" : ""}
+                            value={user.email || ""}
+                            disabled
+                            className="bg-muted cursor-not-allowed"
                           />
-                          {user.role === "admin" && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Администратор не может изменять email
-                            </p>
-                          )}
-                          {errors.email && (
-                            <p className="text-sm text-destructive mt-1">
-                              {errors.email.message}
-                            </p>
-                          )}
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Email нельзя изменить
+                          </p>
                         </div>
                       </div>
                     </div>

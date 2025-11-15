@@ -50,16 +50,16 @@ export async function PUT(request: NextRequest) {
     // Валидация с Zod
     const validated = updateUserSchema.parse(body);
 
-    // Администратор не может изменять email
-    if (user.role === 'admin' && validated.email && validated.email.toLowerCase() !== user.email?.toLowerCase()) {
+    // Email нельзя изменять никому
+    if (validated.email && validated.email.toLowerCase() !== user.email?.toLowerCase()) {
       return NextResponse.json(
-        { error: 'Администратор не может изменять email' },
+        { error: 'Email нельзя изменить' },
         { status: 403 }
       );
     }
 
-    // Если пытаются сменить email и он отличается от текущего
-    if (validated.email && validated.email.toLowerCase() !== user.email?.toLowerCase()) {
+    // Если пытаются сменить email и он отличается от текущего (старая логика, но теперь всегда будет заблокирована выше)
+    if (false && validated.email && validated.email.toLowerCase() !== user.email?.toLowerCase()) {
       // Создаём запрос на верификацию нового email
       try {
         const { verification, code, token } = await createEmailVerificationRequest(
@@ -132,7 +132,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Если email не меняется, просто обновляем профиль
-    // Для администратора не обновляем email даже если он в запросе
+    // Email нельзя изменять никому, поэтому не включаем его в updateData
     const updateData: any = {
       firstName: validated.firstName ?? undefined,
       lastName: validated.lastName ?? undefined,
@@ -140,11 +140,6 @@ export async function PUT(request: NextRequest) {
       position: validated.position ?? undefined,
       company: validated.company ?? undefined,
     };
-
-    // Администратор не может изменять email
-    if (user.role !== 'admin' && validated.email) {
-      updateData.email = validated.email;
-    }
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
