@@ -145,6 +145,14 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
           // Сортируем все поля по order
           allFields.sort((a: RequisiteField, b: RequisiteField) => a.order - b.order);
 
+          console.log('Loaded fields:', {
+            requisitesMode,
+            fieldsCount: allFields.filter(f => f.order < 1000).length,
+            placeholdersCount: allFields.filter(f => f.order >= 1000).length,
+            totalCount: allFields.length,
+            placeholderBindings: data?.requisitesConfig?.placeholderBindings?.length || 0,
+          });
+
           setConfiguredFields(allFields);
         })
         .catch(err => {
