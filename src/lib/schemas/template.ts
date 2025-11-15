@@ -105,7 +105,8 @@ const fieldOptionSchema = z.object({
 export const placeholderBindingSchema = z.object({
   name: z.string().regex(PLACEHOLDER_CODE_REGEX, "Некорректный код плейсхолдера"),
   label: z.string().min(1, "Название обязательно").max(200, "Название не может превышать 200 символов"),
-  source: z.enum(["requisite", "organization", "system", "custom"]),
+  // Остальные поля оставлены для обратной совместимости, но не используются
+  source: z.enum(["requisite", "organization", "system", "custom"]).optional(),
   fieldCode: z.string().min(1).max(100).optional(),
   defaultValue: z.string().max(500).optional(),
   required: z.boolean().optional(),

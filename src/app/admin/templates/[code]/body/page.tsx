@@ -121,27 +121,16 @@ function mapUploadPlaceholder(
     };
   }
 
-  let source: PlaceholderSource = "custom";
-  if (placeholder.suggestedSource === "preset") {
-    source = "requisite";
-  } else if (placeholder.suggestedSource === "system") {
-    source = "system";
-  }
-
-  const existingField = placeholder.inferredFieldCode
-    ? fieldsMap.get(placeholder.inferredFieldCode)
-    : undefined;
-
   return {
     name: placeholder.name,
     label: placeholder.suggestedLabel || placeholder.name,
-    source,
-    fieldCode: placeholder.inferredFieldCode,
-    fieldType: getDefaultFieldType(placeholder.inferredFieldCode, fieldsMap),
-    required: source === "requisite",
-    autofillFromOrg: existingField?.autofillFromOrg ?? false,
-    placeholder: existingField?.placeholder,
-    defaultValue: placeholder.defaultValue,
+    source: "custom",
+    fieldCode: undefined,
+    fieldType: "text",
+    required: false,
+    autofillFromOrg: false,
+    placeholder: undefined,
+    defaultValue: undefined,
     occurrences: placeholder.occurrences,
     warnings: placeholder.warnings,
   };
@@ -268,14 +257,14 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
             (config.placeholderBindings as any[]).forEach((binding) => {
               bindings.set(binding.name, {
                 name: binding.name,
-                label: binding.label,
-                source: binding.source,
-                fieldCode: binding.fieldCode,
-                fieldType: binding.fieldDefinition?.fieldType || getDefaultFieldType(binding.fieldCode, localFieldsMap),
-                required: Boolean(binding.required ?? binding.fieldDefinition?.required ?? false),
-                autofillFromOrg: Boolean(binding.autofillFromOrg ?? binding.fieldDefinition?.autofillFromOrg ?? false),
-                placeholder: binding.fieldDefinition?.placeholder,
-                defaultValue: binding.defaultValue,
+                label: binding.label || binding.name,
+                source: "custom",
+                fieldCode: undefined,
+                fieldType: "text",
+                required: false,
+                autofillFromOrg: false,
+                placeholder: undefined,
+                defaultValue: undefined,
                 occurrences: 1,
                 warnings: [],
               });
@@ -379,48 +368,13 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
       return;
     }
 
-    const errors: string[] = [];
-    placeholders.forEach((placeholder) => {
-      if ((placeholder.source === "requisite" || placeholder.source === "organization") && !placeholder.fieldCode) {
-        errors.push(`Укажите код поля для плейсхолдера ${placeholder.name}`);
-      }
-    });
-
-    if (errors.length) {
-      toast.error(errors[0]);
-      return;
-    }
 
     setSaving(true);
     try {
-      const highestOrder = fields.reduce((max, field) => Math.max(max, field.order ?? 0), 0);
-      let newOrderCounter = highestOrder + 1;
-
       const payloadPlaceholders = placeholders.map((placeholder) => {
-        const isNewRequisite =
-          placeholder.source === "requisite" && placeholder.fieldCode && !fieldsMap.has(placeholder.fieldCode);
-
-        const fieldDefinition = isNewRequisite
-          ? {
-              code: placeholder.fieldCode!,
-              label: placeholder.label,
-              fieldType: placeholder.fieldType || "text",
-              required: placeholder.required,
-              autofillFromOrg: placeholder.autofillFromOrg,
-              placeholder: placeholder.placeholder,
-              order: newOrderCounter++,
-            }
-          : undefined;
-
         return {
           name: placeholder.name,
           label: placeholder.label,
-          source: placeholder.source,
-          fieldCode: placeholder.fieldCode,
-          defaultValue: placeholder.defaultValue,
-          required: placeholder.required,
-          autofillFromOrg: placeholder.autofillFromOrg,
-          fieldDefinition,
         };
       });
 
@@ -483,26 +437,23 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
         });
       }
 
-      if (data.requisitesConfig?.placeholderBindings) {
-        const localFieldsMap = new Map<string, TemplateFieldMeta>();
-        updatedFields.forEach((field) => localFieldsMap.set(field.code, field));
-
-        const bindings = (data.requisitesConfig.placeholderBindings as any[]).map((binding: any) => ({
-          name: binding.name,
-          label: binding.label,
-          source: binding.source as PlaceholderSource,
-          fieldCode: binding.fieldCode,
-          fieldType: binding.fieldDefinition?.fieldType || getDefaultFieldType(binding.fieldCode, localFieldsMap),
-          required: Boolean(binding.required ?? binding.fieldDefinition?.required ?? false),
-          autofillFromOrg: Boolean(binding.autofillFromOrg ?? binding.fieldDefinition?.autofillFromOrg ?? false),
-          placeholder: binding.fieldDefinition?.placeholder,
-          defaultValue: binding.defaultValue,
-          occurrences: 1,
-          warnings: [],
-        } as PlaceholderBindingState));
-        setPlaceholders(bindings);
-        setHasPlaceholders(bindings.length > 0);
-      }
+          if (data.requisitesConfig?.placeholderBindings) {
+            const bindings = (data.requisitesConfig.placeholderBindings as any[]).map((binding: any) => ({
+              name: binding.name,
+              label: binding.label || binding.name,
+              source: "custom" as PlaceholderSource,
+              fieldCode: undefined,
+              fieldType: "text" as FieldType,
+              required: false,
+              autofillFromOrg: false,
+              placeholder: undefined,
+              defaultValue: undefined,
+              occurrences: 1,
+              warnings: [],
+            } as PlaceholderBindingState));
+            setPlaceholders(bindings);
+            setHasPlaceholders(bindings.length > 0);
+          }
     } catch (error) {
       console.error("Save failed", error);
       toast.error(error instanceof Error ? error.message : "Ошибка при сохранении");
@@ -669,7 +620,7 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
             <CardHeader>
               <CardTitle>Плейсхолдеры</CardTitle>
               <CardDescription>
-                Свяжите плейсхолдеры шаблона с реквизитами и системными данными
+                Настройте отображаемые названия плейсхолдеров. Пользователи будут заполнять их вручную или использовать данные из организации.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -680,11 +631,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
               ) : (
                 <div className="space-y-4">
                   {placeholders.map((placeholder) => {
-                    const existingField = placeholder.fieldCode ? fieldsMap.get(placeholder.fieldCode) : undefined;
-                    const isPreset = placeholder.fieldCode && presetFieldCodes.has(placeholder.fieldCode);
-                    const isNewField =
-                      placeholder.source === "requisite" && placeholder.fieldCode && !existingField && !isPreset;
-
                     return (
                       <div key={placeholder.name} className="rounded-lg border bg-background p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -699,16 +645,9 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
                               </div>
                             ) : null}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {placeholder.fieldCode && existingField && (
-                              <Badge variant="outline">Поле существует</Badge>
-                            )}
-                            {isPreset && <Badge variant="secondary">Предустановленное поле</Badge>}
-                            {isNewField && <Badge variant="secondary">Будет создано новое поле</Badge>}
-                          </div>
                         </div>
 
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="mt-4">
                           <div className="space-y-1">
                             <Label>Отображаемое название</Label>
                             <Input
@@ -718,97 +657,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
                               }
                             />
                           </div>
-                          <div className="space-y-1">
-                            <Label>Источник данных</Label>
-                            <Select
-                              value={placeholder.source}
-                              onValueChange={(value: PlaceholderSource) =>
-                                updatePlaceholder(placeholder.name, { source: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {SOURCE_OPTIONS.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {(placeholder.source === "requisite" || placeholder.source === "organization") && (
-                            <div className="space-y-1">
-                              <Label>Код поля</Label>
-                              <Input
-                                value={placeholder.fieldCode || ""}
-                                onChange={(event) =>
-                                  updatePlaceholder(placeholder.name, {
-                                    fieldCode: event.target.value.trim(),
-                                    fieldType: getDefaultFieldType(event.target.value.trim(), fieldsMap),
-                                  })
-                                }
-                                placeholder="Например, inn"
-                              />
-                            </div>
-                          )}
-                          {(placeholder.source === "requisite" || placeholder.source === "organization") && (
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={placeholder.required}
-                                onCheckedChange={(checked) =>
-                                  updatePlaceholder(placeholder.name, { required: checked as boolean })
-                                }
-                              />
-                              <Label className="text-sm">Обязательное поле</Label>
-                            </div>
-                          )}
-                          {placeholder.source === "requisite" && (
-                            <div className="space-y-1">
-                              <Label>Тип поля</Label>
-                              <Select
-                                value={placeholder.fieldType || "text"}
-                                onValueChange={(value: FieldType) =>
-                                  updatePlaceholder(placeholder.name, { fieldType: value })
-                                }
-                                disabled={!isNewField}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {FIELD_TYPES.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                      {type}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
-                          {placeholder.source === "requisite" && (
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={placeholder.autofillFromOrg}
-                                onCheckedChange={(checked) =>
-                                  updatePlaceholder(placeholder.name, { autofillFromOrg: checked as boolean })
-                                }
-                              />
-                              <Label className="text-sm">Подставлять из организации</Label>
-                            </div>
-                          )}
-                          {placeholder.source === "custom" && (
-                            <div className="space-y-1 md:col-span-2">
-                              <Label>Фиксированное значение</Label>
-                              <Input
-                                value={placeholder.defaultValue || ""}
-                                onChange={(event) =>
-                                  updatePlaceholder(placeholder.name, { defaultValue: event.target.value })
-                                }
-                              />
-                            </div>
-                          )}
                         </div>
                       </div>
                     );

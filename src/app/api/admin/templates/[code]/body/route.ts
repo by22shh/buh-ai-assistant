@@ -132,28 +132,7 @@ export async function PUT(
 
     let nextOrder = existingFields.reduce((max, field) => Math.max(max, field.order ?? 0), 0);
 
-    validated.placeholders.forEach((binding) => {
-      const definition = binding.fieldDefinition;
-      if (!definition) return;
-      const fieldCode = definition.code;
-      const order = definition.order ?? (fieldsMap.get(fieldCode)?.order ?? (nextOrder += 1));
-      const normalizedField = {
-        ...fieldsMap.get(fieldCode),
-        code: fieldCode,
-        name: fieldCode,
-        label: definition.label,
-        type: definition.fieldType,
-        fieldType: definition.fieldType,
-        required: definition.required,
-        enabled: true,
-        placeholder: definition.placeholder,
-        autofillFromOrg: definition.autofillFromOrg,
-        validation: definition.validation,
-        options: definition.options,
-        order,
-      };
-      fieldsMap.set(fieldCode, normalizedField);
-    });
+    // Логика создания полей из плейсхолдеров убрана - пользователи будут заполнять плейсхолдеры вручную или использовать данные из организации
 
     const nextFields = Array.from(fieldsMap.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     if (nextFields.length > 0) {
