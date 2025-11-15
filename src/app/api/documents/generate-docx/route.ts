@@ -204,11 +204,17 @@ function getSystemValue(code: string, context: SystemContext): string {
   return '';
 }
 
-function ensureRenderDataPlaceholders(renderData: Record<string, any>, placeholders: any[]) {
+function ensureRenderDataPlaceholders(
+  renderData: Record<string, any>, 
+  placeholders: any[], 
+  requisites?: Record<string, any> | null
+) {
   placeholders.forEach((placeholder) => {
     const name = placeholder?.name || placeholder?.normalized;
     if (typeof name === 'string' && !(name in renderData)) {
-      renderData[name] = '';
+      // Берем значение из requisites, если оно есть
+      const value = requisites?.[name];
+      renderData[name] = value !== undefined && value !== null ? String(value) : '';
     }
   });
 }
@@ -450,17 +456,21 @@ async function generateFromTemplateBody(params: {
     } satisfies SystemContext,
   };
 
+  // Обрабатываем плейсхолдеры из placeholderBindings
+  // После упрощения у плейсхолдеров остались только name и label
   params.config.placeholderBindings.forEach((binding) => {
-    const value = resolveBindingValue(binding, context);
-    const finalValue = value || binding.defaultValue || '';
+    // Берем значение напрямую из requisites по имени плейсхолдера
+    const value = params.requisites?.[binding.name];
+    const finalValue = value !== undefined && value !== null ? String(value) : (binding.defaultValue || '');
     if (!finalValue && binding.required) {
       missingRequired.push(binding.label || binding.name);
     }
     renderData[binding.name] = finalValue;
   });
 
+  // Обрабатываем плейсхолдеры из тела шаблона, которые могут не быть в placeholderBindings
   const placeholders = Array.isArray(params.templateBody.placeholders) ? params.templateBody.placeholders : [];
-  ensureRenderDataPlaceholders(renderData, placeholders);
+  ensureRenderDataPlaceholders(renderData, placeholders, params.requisites);
 
   if (missingRequired.length) {
     throw new Error(`Не заполнены обязательные поля: ${missingRequired.join(', ')}`);
