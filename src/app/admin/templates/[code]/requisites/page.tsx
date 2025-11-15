@@ -252,15 +252,24 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         const data = await response.json();
         setConfig(data);
         if (data.requisitesConfig && data.requisitesConfig.fields) {
-          const storedFields = data.requisitesConfig.fields as RequisiteField[];
-          const orderedFields = [...storedFields]
+          const storedFields = data.requisitesConfig.fields as any[];
+          // Убираем autofillFromOrg из загруженных полей, так как это поле больше не используется
+          // Администратор не должен выбирать, что подтягивать - это делает пользователь
+          const orderedFields = storedFields
             .map((field, index) => {
-              // Убираем autofillFromOrg из загруженных полей, так как это поле больше не используется
-              const { autofillFromOrg, ...fieldWithoutAutofill } = field as any;
-              return {
-                ...fieldWithoutAutofill,
+              // Создаем новый объект без autofillFromOrg
+              const cleanField: RequisiteField = {
+                name: field.name,
+                label: field.label,
+                type: field.type || 'text',
+                required: Boolean(field.required),
+                enabled: field.enabled !== false, // по умолчанию включено
+                placeholder: field.placeholder || undefined,
+                validation: field.validation || undefined,
+                options: field.options || undefined,
                 order: field.order ?? index + 1,
               };
+              return cleanField;
             })
             .sort((a, b) => a.order - b.order);
           setFields(orderedFields);
@@ -283,11 +292,24 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
     try {
       // Убираем autofillFromOrg при сохранении, так как это поле больше не используется
       // Администратор не должен выбирать, что подтягивать - это делает пользователь
+      // Создаем чистые объекты без лишних полей
       const sortedFields = [...fields]
         .sort((a, b) => a.order - b.order)
         .map(field => {
-          const { autofillFromOrg, ...fieldWithoutAutofill } = field as any;
-          return fieldWithoutAutofill;
+          // Создаем новый объект только с нужными полями
+          const cleanField: any = {
+            name: field.name,
+            label: field.label,
+            type: field.type,
+            required: field.required,
+            enabled: field.enabled,
+            order: field.order,
+          };
+          // Добавляем опциональные поля только если они есть
+          if (field.placeholder) cleanField.placeholder = field.placeholder;
+          if (field.validation) cleanField.validation = field.validation;
+          if (field.options && field.options.length > 0) cleanField.options = field.options;
+          return cleanField;
         });
       const enabledCount = fields.filter(field => field.enabled).length;
       
