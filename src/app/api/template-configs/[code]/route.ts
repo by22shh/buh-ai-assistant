@@ -36,19 +36,22 @@ export async function GET(
     const placeholdersFromBody = Array.isArray(templateBody?.placeholders) ? templateBody.placeholders : [];
 
     // Если в конфигурации нет placeholderBindings, но есть в templateBody, используем их
+    let finalPlaceholderBindings = placeholderBindingsFromConfig;
     if (placeholderBindingsFromConfig.length === 0 && placeholdersFromBody.length > 0) {
       // Преобразуем placeholders из templateBody в формат placeholderBindings
-      const bindingsFromBody = placeholdersFromBody.map((placeholder: any) => ({
+      finalPlaceholderBindings = placeholdersFromBody.map((placeholder: any) => ({
         name: placeholder.name || placeholder.normalized,
         label: placeholder.label || placeholder.suggestedLabel || placeholder.name || placeholder.normalized,
       }));
+    }
 
-      // Добавляем их в requisitesConfig
+    // Если есть placeholderBindings, добавляем их в requisitesConfig
+    if (finalPlaceholderBindings.length > 0) {
       if (!requisitesConfig) {
         return NextResponse.json({
           ...config,
           requisitesConfig: {
-            placeholderBindings: bindingsFromBody,
+            placeholderBindings: finalPlaceholderBindings,
           },
         });
       }
@@ -57,7 +60,7 @@ export async function GET(
         ...config,
         requisitesConfig: {
           ...requisitesConfig,
-          placeholderBindings: bindingsFromBody,
+          placeholderBindings: finalPlaceholderBindings,
         },
       });
     }
