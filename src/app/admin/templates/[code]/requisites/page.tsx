@@ -20,6 +20,7 @@ interface RequisiteField {
   type: 'text' | 'number' | 'email' | 'phone' | 'date' | 'select' | 'textarea';
   required: boolean;
   enabled: boolean;
+  autofillFromOrg?: boolean; // подтягивать из организации
   placeholder?: string;
   validation?: string;
   options?: string[]; // для select
@@ -35,6 +36,7 @@ interface TemplateRequisitesConfig {
 }
 
 // Стандартные поля реквизитов
+// Важно: коды полей (name) должны совпадать с кодами полей в организации
 const standardFields: RequisiteField[] = [
   {
     name: 'name_full',
@@ -42,6 +44,7 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: true,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'ООО "Название компании"',
     order: 1
   },
@@ -51,6 +54,7 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: true,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '1234567890',
     validation: '^\\d{10}$|^\\d{12}$',
     order: 2
@@ -61,37 +65,52 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '123456789',
     validation: '^\\d{9}$',
     order: 3
   },
   {
     name: 'ogrn',
-    label: 'ОГРН/ОГРНИП',
+    label: 'ОГРН',
     type: 'text',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '1234567890123',
-    validation: '^\\d{13}$|^\\d{15}$',
+    validation: '^\\d{13}$',
     order: 4
   },
   {
-    name: 'legal_address',
+    name: 'ogrnip',
+    label: 'ОГРНИП',
+    type: 'text',
+    required: false,
+    enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
+    placeholder: '123456789012345',
+    validation: '^\\d{15}$',
+    order: 5
+  },
+  {
+    name: 'address_legal',
     label: 'Юридический адрес',
     type: 'textarea',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'г. Москва, ул. Примерная, д. 1',
-    order: 5
+    order: 6
   },
   {
-    name: 'postal_address',
+    name: 'address_postal',
     label: 'Почтовый адрес',
     type: 'textarea',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'г. Москва, ул. Примерная, д. 1',
-    order: 6
+    order: 7
   },
   {
     name: 'phone',
@@ -99,9 +118,10 @@ const standardFields: RequisiteField[] = [
     type: 'phone',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '+7 (999) 123-45-67',
     validation: '^\\+?[0-9\\s\\-()]{10,20}$',
-    order: 7
+    order: 8
   },
   {
     name: 'email',
@@ -109,8 +129,19 @@ const standardFields: RequisiteField[] = [
     type: 'email',
     required: false,
     enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'info@company.ru',
-    order: 8
+    order: 9
+  },
+  {
+    name: 'website',
+    label: 'Веб-сайт',
+    type: 'text',
+    required: false,
+    enabled: true,
+    autofillFromOrg: true, // может подтягиваться из организации
+    placeholder: 'www.example.ru',
+    order: 10
   },
   {
     name: 'bank_name',
@@ -118,8 +149,9 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'ПАО "Сбербанк"',
-    order: 9
+    order: 11
   },
   {
     name: 'bank_bik',
@@ -127,56 +159,62 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '044525225',
     validation: '^\\d{9}$',
-    order: 10
+    order: 12
   },
   {
-    name: 'bank_corr_account',
+    name: 'bank_ks',
     label: 'Корреспондентский счёт',
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '30101810400000000225',
     validation: '^\\d{20}$',
-    order: 11
+    order: 13
   },
   {
-    name: 'settlement_account',
+    name: 'bank_rs',
     label: 'Расчётный счёт',
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '40702810838000123456',
     validation: '^\\d{20}$',
-    order: 12
+    order: 14
   },
   {
-    name: 'ceo_name',
+    name: 'head_fio',
     label: 'ФИО руководителя',
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'Иванов Иван Иванович',
-    order: 13
+    order: 15
   },
   {
-    name: 'ceo_position',
+    name: 'head_title',
     label: 'Должность руководителя',
     type: 'text',
     required: false,
     enabled: false,
+    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'Генеральный директор',
-    order: 14
+    order: 16
   },
   {
-    name: 'accountant_name',
-    label: 'ФИО главного бухгалтера',
-    type: 'text',
+    name: 'authority_base',
+    label: 'Основание полномочий',
+    type: 'select',
     required: false,
     enabled: false,
-    placeholder: 'Петрова Анна Сергеевна',
-    order: 15
+    autofillFromOrg: true, // может подтягиваться из организации
+    options: ['Устава', 'Доверенности'],
+    order: 17
   }
 ];
 
@@ -233,10 +271,19 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         if (data.requisitesConfig && data.requisitesConfig.fields) {
           const storedFields = data.requisitesConfig.fields as RequisiteField[];
           const orderedFields = [...storedFields]
-            .map((field, index) => ({
-              ...field,
-              order: field.order ?? index + 1,
-            }))
+            .map((field, index) => {
+              // Определяем значение по умолчанию для autofillFromOrg
+              // Если поле есть в стандартных полях и там autofillFromOrg: true, используем true
+              // Иначе используем сохраненное значение или false
+              const defaultField = standardFields.find(sf => sf.name === field.name);
+              const defaultAutofill = defaultField?.autofillFromOrg ?? false;
+              
+              return {
+                ...field,
+                order: field.order ?? index + 1,
+                autofillFromOrg: field.autofillFromOrg ?? defaultAutofill,
+              };
+            })
             .sort((a, b) => a.order - b.order);
           setFields(orderedFields);
         }
@@ -403,7 +450,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
               <div className="space-y-4">
                 {fields.map((field, index) => (
                   <div key={field.name} className="border rounded-lg p-4 bg-background">
-                    <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="grid grid-cols-12 gap-3 items-center">
                       {/* Включен/выключен */}
                       <div className="col-span-1">
                         <Checkbox
@@ -413,8 +460,8 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
                       </div>
 
                       {/* Название поля */}
-                      <div className="col-span-3">
-                        <div className="font-medium">{field.label}</div>
+                      <div className="col-span-2">
+                        <div className="font-medium text-sm">{field.label}</div>
                         <div className="text-xs text-muted-foreground font-mono">{field.name}</div>
                       </div>
 
@@ -424,7 +471,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
                           value={field.type}
                           onValueChange={(value) => updateField(index, { type: value as RequisiteField['type'] })}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -441,13 +488,27 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
 
                       {/* Обязательное поле */}
                       <div className="col-span-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <Checkbox
                             checked={field.required}
                             onCheckedChange={(checked) => updateField(index, { required: checked as boolean })}
                             disabled={!field.enabled}
                           />
                           <Label className="text-xs">Обяз.</Label>
+                        </div>
+                      </div>
+
+                      {/* Подтягивать из организации */}
+                      <div className="col-span-1">
+                        <div className="flex items-center space-x-1">
+                          <Checkbox
+                            checked={field.autofillFromOrg ?? false}
+                            onCheckedChange={(checked) => updateField(index, { autofillFromOrg: checked as boolean })}
+                            disabled={!field.enabled}
+                          />
+                          <Label className="text-xs" title="Подтягивать значение из выбранной организации по коду поля">
+                            Из орг.
+                          </Label>
                         </div>
                       </div>
 
@@ -463,7 +524,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
                       </div>
 
                       {/* Порядок и действия */}
-                      <div className="col-span-2 flex gap-1">
+                      <div className="col-span-2 flex gap-1 items-center">
                         <Button
                           size="sm"
                           variant="outline"

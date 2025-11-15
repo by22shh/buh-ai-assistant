@@ -246,20 +246,37 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
       // Используем настроенные поля с автозаполнением
       // Соответствие строится на основе кода поля (field.code)
       configuredFields.forEach(field => {
-        if (field.autofillFromOrg && field.code) {
+        // Используем code, который может быть из field.code или field.name
+        const fieldCode = field.code;
+        // Проверяем, что поле может подтягиваться из организации
+        if (field.autofillFromOrg && fieldCode) {
           // Ищем значение в организации по коду поля
-          const orgValue = (org as any)[field.code];
+          // Код поля должен совпадать с полем в организации (например, name_full, inn, address_legal)
+          const orgValue = (org as any)[fieldCode];
+          // Проверяем, что значение существует и не пустое
           if (orgValue !== undefined && orgValue !== null && String(orgValue).trim() !== '') {
-            newRequisites[field.code] = String(orgValue);
+            newRequisites[fieldCode] = String(orgValue);
             filledReqs.push({
-              fieldCode: field.code,
+              fieldCode: fieldCode,
               fieldLabel: field.label,
               orgValue: String(orgValue),
-              orgFieldCode: field.code // Соответствие на основе кода
+              orgFieldCode: fieldCode // Соответствие на основе кода
             });
           }
         }
       });
+      
+      // Отладочная информация
+      if (filledReqs.length === 0 && configuredFields.length > 0) {
+        console.log('Подтягивание реквизитов: не найдено подходящих полей', {
+          configuredFields: configuredFields.map(f => ({ 
+            code: f.code, 
+            label: f.label, 
+            autofillFromOrg: f.autofillFromOrg 
+          })),
+          orgFields: Object.keys(org),
+        });
+      }
     } else {
       // Fallback: автоподстановка всех доступных полей
       const fallbackFields = [
