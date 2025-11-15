@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/useUser";
+import { Mail, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -130,93 +132,134 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl mb-2">Вход в систему</CardTitle>
-          <CardDescription>
-            {step === "email"
-              ? "Введите email для получения кода"
-              : `Код отправлен на ${email}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {step === "email" ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email адрес</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Отправка..." : "Получить код"}
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <form onSubmit={handleCodeSubmit} className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Back to home link */}
+        <Link 
+          href="/" 
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Вернуться на главную</span>
+        </Link>
+
+        <Card className="bg-white border border-gray-200 shadow-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-bold text-gray-900 mb-2">Вход в систему</CardTitle>
+            <CardDescription className="text-gray-600">
+              {step === "email"
+                ? "Введите email для получения кода"
+                : `Код отправлен на ${email}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {step === "email" ? (
+              <form onSubmit={handleEmailSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="code">6-значный код</Label>
-                  <Input
-                    id="code"
-                    type="text"
-                    placeholder="123456"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Проверьте почту и введите код, который мы отправили
-                  </p>
+                  <Label htmlFor="email" className="text-gray-700 font-medium">
+                    Email адрес
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      className="pl-10 h-12 border-gray-300 focus:border-yellow-400 focus:ring-yellow-400"
+                    />
+                  </div>
                 </div>
                 {error && (
-                  <p className="text-sm text-destructive">{error}</p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
                 )}
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Проверка..." : "Войти"}
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium shadow-md hover:shadow-lg transition-all" 
+                  disabled={loading}
+                >
+                  {loading ? "Отправка..." : "Получить код"}
                 </Button>
               </form>
+            ) : (
+              <div className="space-y-6">
+                <form onSubmit={handleCodeSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="code" className="text-gray-700 font-medium">
+                      6-значный код
+                    </Label>
+                    <Input
+                      id="code"
+                      type="text"
+                      placeholder="123456"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      required
+                      autoFocus
+                      className="h-12 text-center text-2xl tracking-widest border-gray-300 focus:border-yellow-400 focus:ring-yellow-400"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Проверьте почту и введите код, который мы отправили
+                    </p>
+                  </div>
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
+                  )}
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium shadow-md hover:shadow-lg transition-all" 
+                    disabled={loading}
+                  >
+                    {loading ? "Проверка..." : "Войти"}
+                  </Button>
+                </form>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setStep("email");
-                  setCode("");
-                  setToken("");
-                  setError("");
-                }}
-                className="w-full"
-              >
-                Изменить email
-              </Button>
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setStep("email");
+                      setCode("");
+                      setToken("");
+                      setError("");
+                    }}
+                    className="w-full h-11 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Изменить email
+                  </Button>
 
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => handleEmailSubmit(new Event('submit') as any)}
-                  disabled={loading}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Отправить код повторно
-                </button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleEmailSubmit(new Event('submit') as any)}
+                      disabled={loading}
+                      className="text-sm text-yellow-600 hover:text-yellow-700 hover:underline transition-colors"
+                    >
+                      Отправить код повторно
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Additional info */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-500">
+            Нет аккаунта? Код будет отправлен на указанный email
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
