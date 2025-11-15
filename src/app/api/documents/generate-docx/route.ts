@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, type SectionChild } from 'docx';
+import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } from 'docx';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { resolveStoredPath } from '@/lib/services/templateStorage';
@@ -436,7 +436,7 @@ async function generateFallbackDoc(params: {
   organization?: Record<string, unknown> | null;
   config: NormalizedConfig;
 }): Promise<Buffer> {
-  const children: SectionChild[] = [];
+  const children: (Paragraph | Table)[] = [];
 
   if (params.templateName) {
     children.push(
