@@ -336,22 +336,3 @@ curl http://localhost:3000/api/users/me
 MIT License - см. [LICENSE](./LICENSE)
 
 ---
-
-## 🎉 Благодарности
-
-Построено с помощью:
-- [Next.js](https://nextjs.org/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [Prisma](https://www.prisma.io/)
-- [Neon](https://neon.tech/)
-- [Netlify](https://www.netlify.com/)
-
-Разработано в [Same AI IDE](https://same.new)
-
----
-
-**Версия:** v29 (Production-Ready)
-**Дата:** 20 октября 2025
-**Статус:** ✅ Готово к production
-
-**Создайте свой первый документ за 30 секунд!** 🚀
