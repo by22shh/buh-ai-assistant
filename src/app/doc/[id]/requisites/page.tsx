@@ -34,6 +34,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
   const [loading, setLoading] = useState(false);
   const [configuredFields, setConfiguredFields] = useState<RequisiteField[]>([]);
   const [bodyText, setBodyText] = useState<string>("");
+  const [filledRequisites, setFilledRequisites] = useState<Array<{fieldCode: string; fieldLabel: string; orgValue: string; orgFieldCode: string}>>([]);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -195,6 +196,37 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
     );
   }
 
+  // Функция для получения человекочитаемого названия поля организации
+  const getOrgFieldLabel = (fieldCode: string): string => {
+    const labels: Record<string, string> = {
+      name_full: "Полное наименование",
+      name_short: "Краткое наименование",
+      inn: "ИНН",
+      kpp: "КПП",
+      ogrn: "ОГРН",
+      ogrnip: "ОГРНИП",
+      okpo: "ОКПО",
+      okved: "ОКВЭД",
+      address_legal: "Юридический адрес",
+      address_postal: "Почтовый адрес",
+      phone: "Телефон",
+      email: "Email",
+      website: "Веб-сайт",
+      head_title: "Должность руководителя",
+      head_fio: "ФИО руководителя",
+      authority_base: "Основание полномочий",
+      poa_number: "Номер доверенности",
+      poa_date: "Дата доверенности",
+      bank_bik: "БИК банка",
+      bank_name: "Наименование банка",
+      bank_ks: "Корр. счет",
+      bank_rs: "Расчетный счет",
+      seal_note: "Примечание к печати",
+      notes: "Примечания",
+    };
+    return labels[fieldCode] || fieldCode;
+  };
+
   const handleFillFromOrg = () => {
     if (!selectedOrgId) {
       toast.error("Выберите организацию");
@@ -208,38 +240,63 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
     }
 
     const newRequisites: Record<string, string> = {};
+    const filledReqs: Array<{fieldCode: string; fieldLabel: string; orgValue: string; orgFieldCode: string}> = [];
 
     if (configuredFields.length > 0) {
       // Используем настроенные поля с автозаполнением
+      // Соответствие строится на основе кода поля (field.code)
       configuredFields.forEach(field => {
         if (field.autofillFromOrg && field.code) {
+          // Ищем значение в организации по коду поля
           const orgValue = (org as any)[field.code];
-          if (orgValue !== undefined && orgValue !== null) {
+          if (orgValue !== undefined && orgValue !== null && String(orgValue).trim() !== '') {
             newRequisites[field.code] = String(orgValue);
+            filledReqs.push({
+              fieldCode: field.code,
+              fieldLabel: field.label,
+              orgValue: String(orgValue),
+              orgFieldCode: field.code // Соответствие на основе кода
+            });
           }
         }
       });
     } else {
       // Fallback: автоподстановка всех доступных полей
-      newRequisites.name_full = org.name_full;
-      newRequisites.name_short = org.name_short || "";
-      newRequisites.inn = org.inn;
-      newRequisites.kpp = org.kpp || "";
-      newRequisites.ogrn = org.ogrn || "";
-      newRequisites.ogrnip = org.ogrnip || "";
-      newRequisites.address_legal = org.address_legal;
-      newRequisites.phone = org.phone || "";
-      newRequisites.email = org.email;
-      newRequisites.head_title = org.head_title;
-      newRequisites.head_fio = org.head_fio;
-      newRequisites.bank_bik = org.bank_bik;
-      newRequisites.bank_name = org.bank_name;
-      newRequisites.bank_ks = org.bank_ks;
-      newRequisites.bank_rs = org.bank_rs;
+      const fallbackFields = [
+        { code: 'name_full', label: 'Полное наименование' },
+        { code: 'name_short', label: 'Краткое наименование' },
+        { code: 'inn', label: 'ИНН' },
+        { code: 'kpp', label: 'КПП' },
+        { code: 'ogrn', label: 'ОГРН' },
+        { code: 'ogrnip', label: 'ОГРНИП' },
+        { code: 'address_legal', label: 'Юридический адрес' },
+        { code: 'phone', label: 'Телефон' },
+        { code: 'email', label: 'Email' },
+        { code: 'head_title', label: 'Должность руководителя' },
+        { code: 'head_fio', label: 'ФИО руководителя' },
+        { code: 'bank_bik', label: 'БИК банка' },
+        { code: 'bank_name', label: 'Наименование банка' },
+        { code: 'bank_ks', label: 'Корр. счет' },
+        { code: 'bank_rs', label: 'Расчетный счет' },
+      ];
+
+      fallbackFields.forEach(({ code, label }) => {
+        const orgValue = (org as any)[code];
+        if (orgValue !== undefined && orgValue !== null && String(orgValue).trim() !== '') {
+          newRequisites[code] = String(orgValue);
+          filledReqs.push({
+            fieldCode: code,
+            fieldLabel: label,
+            orgValue: String(orgValue),
+            orgFieldCode: code
+          });
+        }
+      });
     }
 
     setRequisites(newRequisites);
-    toast.success("Реквизиты подтянуты из организации");
+    setFilledRequisites(filledReqs);
+    toast.success(`Подтянуто ${filledReqs.length} реквизитов из организации`);
   };
 
   const handleDownload = async (format: "docx" | "pdf") => {
@@ -350,7 +407,16 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
             <CardContent className="space-y-4">
               <div>
                 <Label>Организация</Label>
-                <Select value={selectedOrgId || undefined} onValueChange={setSelectedOrgId}>
+                <Select 
+                  value={selectedOrgId || undefined} 
+                  onValueChange={(value) => {
+                    setSelectedOrgId(value);
+                    // Очищаем подтянутые реквизиты при смене организации
+                    if (!value) {
+                      setFilledRequisites([]);
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Не выбирать" />
                   </SelectTrigger>
@@ -548,6 +614,55 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
               )}
             </CardContent>
           </Card>
+
+          {/* Подтянутые реквизиты из организации */}
+          {filledRequisites.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Подтянутые реквизиты из организации</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ниже показаны реквизиты, которые были автоматически подтянуты из выбранной организации.
+                  Соответствие между полями шаблона и организации строится на основе кода поля.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filledRequisites.map((req, index) => (
+                    <div key={index} className="border rounded-lg p-4 bg-muted/30">
+                      <div className="space-y-3">
+                        {/* Заголовок с названием поля шаблона */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-semibold text-sm">{req.fieldLabel}</span>
+                              <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded">
+                                код: {req.fieldCode}
+                              </span>
+                            </div>
+                            {/* Соответствие по коду */}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                              <span>↳</span>
+                              <span>Соответствует полю организации:</span>
+                              <code className="bg-muted px-2 py-0.5 rounded font-mono text-xs">
+                                {req.orgFieldCode}
+                              </code>
+                              <span className="text-muted-foreground">({getOrgFieldLabel(req.orgFieldCode)})</span>
+                            </div>
+                            {/* Значение из организации */}
+                            <div className="bg-background border rounded-md p-3">
+                              <div className="text-sm font-mono text-foreground break-words">
+                                {req.orgValue}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Действия */}
           <div className="flex flex-col gap-3">
