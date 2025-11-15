@@ -214,6 +214,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const [templateNotFound, setTemplateNotFound] = useState(false);
   const [config, setConfig] = useState<TemplateRequisitesConfig | null>(null);
   const [fields, setFields] = useState<RequisiteField[]>(standardFields);
+  const [requisitesMode, setRequisitesMode] = useState<RequisitesMode>("both");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
