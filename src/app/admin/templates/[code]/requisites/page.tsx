@@ -215,6 +215,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const [config, setConfig] = useState<TemplateRequisitesConfig | null>(null);
   const [fields, setFields] = useState<RequisiteField[]>(standardFields);
   const [requisitesMode, setRequisitesMode] = useState<RequisitesMode>("both");
+  const [appendMode, setAppendMode] = useState<"auto" | "disabled">("auto");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -262,6 +263,14 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
           } else {
             // По умолчанию "both" если не указано
             setRequisitesMode("both");
+          }
+
+          // Загружаем режим добавления реквизитов
+          if (data.requisitesConfig.appendMode) {
+            setAppendMode(data.requisitesConfig.appendMode);
+          } else {
+            // По умолчанию "auto" если не указано
+            setAppendMode("auto");
           }
 
           if (data.requisitesConfig.fields) {
@@ -332,6 +341,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         requisitesConfig: {
           fields: sortedFields,
           requisitesMode: requisitesMode,
+          appendMode: appendMode,
           version: template?.version || '1.0',
           lastUpdated: new Date().toISOString(),
           updatedBy: user?.email || 'admin'
