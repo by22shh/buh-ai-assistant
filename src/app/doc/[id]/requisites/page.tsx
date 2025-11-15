@@ -95,7 +95,9 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
                 label: field.label ?? rawCode,
                 fieldType: safeType,
                 required: Boolean(field.required),
-                autofillFromOrg: Boolean(field.autofillFromOrg),
+                // autofillFromOrg больше не используется - пользователь сам выбирает, что подтягивать
+                // Все поля из шаблона могут быть подтянуты из организации, если они там есть
+                autofillFromOrg: true, // Всегда true, так как пользователь сам решает, что подтягивать
                 placeholder: typeof field.placeholder === "string" ? field.placeholder : "",
                 helpText: typeof field.helpText === "string" ? field.helpText : "",
                 validation,
@@ -243,15 +245,15 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
     const filledReqs: Array<{fieldCode: string; fieldLabel: string; orgValue: string; orgFieldCode: string}> = [];
 
     if (configuredFields.length > 0) {
-      // Используем настроенные поля с автозаполнением
+      // Используем настроенные поля из шаблона
+      // Пользователь сам выбирает, что подтягивать - подтягиваем все поля из организации, которые есть в шаблоне
       // Соответствие строится на основе кода поля (field.code)
       configuredFields.forEach(field => {
         // Используем code, который может быть из field.code или field.name
         const fieldCode = field.code;
-        // Проверяем, что поле может подтягиваться из организации
-        if (field.autofillFromOrg && fieldCode) {
-          // Ищем значение в организации по коду поля
-          // Код поля должен совпадать с полем в организации (например, name_full, inn, address_legal)
+        // Подтягиваем все поля из организации, которые есть в шаблоне (независимо от autofillFromOrg)
+        // Код поля должен совпадать с полем в организации (например, name_full, inn, address_legal)
+        if (fieldCode) {
           const orgValue = (org as any)[fieldCode];
           // Проверяем, что значение существует и не пустое
           if (orgValue !== undefined && orgValue !== null && String(orgValue).trim() !== '') {
@@ -271,8 +273,7 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         console.log('Подтягивание реквизитов: не найдено подходящих полей', {
           configuredFields: configuredFields.map(f => ({ 
             code: f.code, 
-            label: f.label, 
-            autofillFromOrg: f.autofillFromOrg 
+            label: f.label
           })),
           orgFields: Object.keys(org),
         });
@@ -455,7 +456,8 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
                 Подтянуть реквизиты
               </Button>
               <p className="text-sm text-muted-foreground">
-                Подтянем все доступные поля из выбранной организации. Изменения ниже влияют только на текущий документ.
+                Подтянем все поля из выбранной организации, которые есть в шаблоне и заполнены в организации.
+                Соответствие строится на основе кода поля. Изменения ниже влияют только на текущий документ.
               </p>
             </CardContent>
           </Card>
@@ -638,8 +640,10 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
               <CardHeader>
                 <CardTitle>Подтянутые реквизиты из организации</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Ниже показаны реквизиты, которые были автоматически подтянуты из выбранной организации.
+                  Ниже показаны реквизиты, которые были подтянуты из выбранной организации.
+                  Подтягиваются все поля из шаблона, которые есть в организации и заполнены.
                   Соответствие между полями шаблона и организации строится на основе кода поля.
+                  Вы можете редактировать эти значения в форме выше.
                 </p>
               </CardHeader>
               <CardContent>

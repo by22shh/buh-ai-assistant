@@ -20,7 +20,6 @@ interface RequisiteField {
   type: 'text' | 'number' | 'email' | 'phone' | 'date' | 'select' | 'textarea';
   required: boolean;
   enabled: boolean;
-  autofillFromOrg?: boolean; // подтягивать из организации
   placeholder?: string;
   validation?: string;
   options?: string[]; // для select
@@ -37,6 +36,7 @@ interface TemplateRequisitesConfig {
 
 // Стандартные поля реквизитов
 // Важно: коды полей (name) должны совпадать с кодами полей в организации
+// Пользователь сам выбирает, какие поля подтягивать из организации
 const standardFields: RequisiteField[] = [
   {
     name: 'name_full',
@@ -44,7 +44,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: true,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'ООО "Название компании"',
     order: 1
   },
@@ -54,7 +53,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: true,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '1234567890',
     validation: '^\\d{10}$|^\\d{12}$',
     order: 2
@@ -65,7 +63,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '123456789',
     validation: '^\\d{9}$',
     order: 3
@@ -76,7 +73,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '1234567890123',
     validation: '^\\d{13}$',
     order: 4
@@ -87,7 +83,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '123456789012345',
     validation: '^\\d{15}$',
     order: 5
@@ -98,7 +93,6 @@ const standardFields: RequisiteField[] = [
     type: 'textarea',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'г. Москва, ул. Примерная, д. 1',
     order: 6
   },
@@ -108,7 +102,6 @@ const standardFields: RequisiteField[] = [
     type: 'textarea',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'г. Москва, ул. Примерная, д. 1',
     order: 7
   },
@@ -118,7 +111,6 @@ const standardFields: RequisiteField[] = [
     type: 'phone',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '+7 (999) 123-45-67',
     validation: '^\\+?[0-9\\s\\-()]{10,20}$',
     order: 8
@@ -129,7 +121,6 @@ const standardFields: RequisiteField[] = [
     type: 'email',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'info@company.ru',
     order: 9
   },
@@ -139,7 +130,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: true,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'www.example.ru',
     order: 10
   },
@@ -149,7 +139,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'ПАО "Сбербанк"',
     order: 11
   },
@@ -159,7 +148,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '044525225',
     validation: '^\\d{9}$',
     order: 12
@@ -170,7 +158,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '30101810400000000225',
     validation: '^\\d{20}$',
     order: 13
@@ -181,7 +168,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: '40702810838000123456',
     validation: '^\\d{20}$',
     order: 14
@@ -192,7 +178,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'Иванов Иван Иванович',
     order: 15
   },
@@ -202,7 +187,6 @@ const standardFields: RequisiteField[] = [
     type: 'text',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     placeholder: 'Генеральный директор',
     order: 16
   },
@@ -212,7 +196,6 @@ const standardFields: RequisiteField[] = [
     type: 'select',
     required: false,
     enabled: false,
-    autofillFromOrg: true, // может подтягиваться из организации
     options: ['Устава', 'Доверенности'],
     order: 17
   }
@@ -272,16 +255,11 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
           const storedFields = data.requisitesConfig.fields as RequisiteField[];
           const orderedFields = [...storedFields]
             .map((field, index) => {
-              // Определяем значение по умолчанию для autofillFromOrg
-              // Если поле есть в стандартных полях и там autofillFromOrg: true, используем true
-              // Иначе используем сохраненное значение или false
-              const defaultField = standardFields.find(sf => sf.name === field.name);
-              const defaultAutofill = defaultField?.autofillFromOrg ?? false;
-              
+              // Убираем autofillFromOrg из загруженных полей, так как это поле больше не используется
+              const { autofillFromOrg, ...fieldWithoutAutofill } = field as any;
               return {
-                ...field,
+                ...fieldWithoutAutofill,
                 order: field.order ?? index + 1,
-                autofillFromOrg: field.autofillFromOrg ?? defaultAutofill,
               };
             })
             .sort((a, b) => a.order - b.order);
@@ -303,7 +281,14 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const handleSave = async () => {
     setSaving(true);
     try {
-      const sortedFields = [...fields].sort((a, b) => a.order - b.order);
+      // Убираем autofillFromOrg при сохранении, так как это поле больше не используется
+      // Администратор не должен выбирать, что подтягивать - это делает пользователь
+      const sortedFields = [...fields]
+        .sort((a, b) => a.order - b.order)
+        .map(field => {
+          const { autofillFromOrg, ...fieldWithoutAutofill } = field as any;
+          return fieldWithoutAutofill;
+        });
       const enabledCount = fields.filter(field => field.enabled).length;
       
       const configData = {
@@ -498,22 +483,8 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
                         </div>
                       </div>
 
-                      {/* Подтягивать из организации */}
-                      <div className="col-span-1">
-                        <div className="flex items-center space-x-1">
-                          <Checkbox
-                            checked={field.autofillFromOrg ?? false}
-                            onCheckedChange={(checked) => updateField(index, { autofillFromOrg: checked as boolean })}
-                            disabled={!field.enabled}
-                          />
-                          <Label className="text-xs" title="Подтягивать значение из выбранной организации по коду поля">
-                            Из орг.
-                          </Label>
-                        </div>
-                      </div>
-
                       {/* Placeholder */}
-                      <div className="col-span-3">
+                      <div className="col-span-4">
                         <Input
                           value={field.placeholder || ''}
                           onChange={(e) => updateField(index, { placeholder: e.target.value })}
