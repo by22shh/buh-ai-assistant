@@ -23,6 +23,27 @@ export async function GET(
       }),
     ]);
 
+    // Если конфигурации нет, но есть templateBody с плейсхолдерами, создаем минимальную конфигурацию
+    if (!config && templateBody) {
+      const placeholdersFromBody = Array.isArray(templateBody.placeholders) ? templateBody.placeholders : [];
+      if (placeholdersFromBody.length > 0) {
+        const bindingsFromBody = placeholdersFromBody.map((placeholder: any) => ({
+          name: placeholder.name || placeholder.normalized,
+          label: placeholder.label || placeholder.suggestedLabel || placeholder.name || placeholder.normalized,
+        }));
+
+        return NextResponse.json({
+          id: '',
+          templateCode: resolvedParams.code,
+          requisitesConfig: {
+            placeholderBindings: bindingsFromBody,
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    }
+
     if (!config) {
       return NextResponse.json(
         { error: 'Template configuration not found' },
