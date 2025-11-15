@@ -63,19 +63,6 @@ interface TemplateBodyRecord {
   placeholders: PlaceholderBindingState[] | null;
 }
 
-const APPEND_MODE_OPTIONS: { value: "auto" | "disabled"; label: string; description: string }[] = [
-  {
-    value: "auto",
-    label: "Автоматически добавлять блок реквизитов",
-    description: "В конце документа появится раздел с реквизитами, если их нет в шаблоне",
-  },
-  {
-    value: "disabled",
-    label: "Не добавлять автоматически",
-    description: "Финальный документ останется как в шаблоне",
-  },
-];
-
 function formatBytes(bytes: number) {
   if (!bytes) return "0 Б";
   const units = ["Б", "КБ", "МБ", "ГБ"];
@@ -171,7 +158,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
 
   const [templateBody, setTemplateBody] = useState<TemplateBodyRecord | null>(null);
   const [previewText, setPreviewText] = useState("");
-  const [appendMode, setAppendMode] = useState<"auto" | "disabled">("auto");
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [placeholders, setPlaceholders] = useState<PlaceholderBindingState[]>([]);
@@ -228,10 +214,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
           setFields(parsedFields);
           const localFieldsMap = new Map<string, TemplateFieldMeta>();
           parsedFields.forEach((field) => localFieldsMap.set(field.code, field));
-
-          if (config.appendMode === "disabled") {
-            setAppendMode("disabled");
-          }
 
           if (Array.isArray(config.placeholderBindings)) {
             const bindings = new Map<string, PlaceholderBindingState>();
@@ -366,7 +348,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
         body: JSON.stringify({
           templateCode,
           uploadId: uploadId ?? undefined,
-          appendMode,
           placeholders: payloadPlaceholders,
           previewText,
         }),
@@ -562,36 +543,6 @@ export default function AdminTemplateBodyPage({ params }: { params: Promise<{ co
                   </ul>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Режим добавления реквизитов</CardTitle>
-              <CardDescription>
-                Управляет тем, будет ли блок реквизитов добавляться автоматически, если в шаблоне нет плейсхолдеров
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {APPEND_MODE_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={cn(
-                    "flex cursor-pointer gap-3 rounded-lg border p-3",
-                    appendMode === option.value ? "border-primary" : "border-border"
-                  )}
-                >
-                  <Checkbox
-                    checked={appendMode === option.value}
-                    onCheckedChange={() => setAppendMode(option.value)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">{option.description}</div>
-                  </div>
-                </label>
-              ))}
             </CardContent>
           </Card>
 
