@@ -139,7 +139,7 @@ export const finalizeTemplateBodySchema = z.object({
   templateCode: z.string().min(1),
   uploadId: z.string().uuid().optional(),
   placeholders: z.array(placeholderBindingSchema),
-  appendMode: z.enum(["auto", "disabled"]).default("auto"),
+  appendMode: z.enum(["auto", "disabled"]).optional(), // Настраивается в разделе "Настройка реквизитов"
   previewText: z.string().optional(),
 });
 

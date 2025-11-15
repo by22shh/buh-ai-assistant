@@ -142,7 +142,9 @@ export async function PUT(
     const nextConfig = {
       ...configData,
       placeholderBindings: validated.placeholders,
-      appendMode: validated.appendMode,
+      // appendMode настраивается в разделе "Настройка реквизитов", не обновляем его здесь
+      // Если appendMode передан, используем его, иначе оставляем существующее значение
+      appendMode: validated.appendMode ?? configData.appendMode ?? "auto",
       version: template.version,
       lastUpdated: now.toISOString(),
       updatedBy: user.email ?? "admin",
