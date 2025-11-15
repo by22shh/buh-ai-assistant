@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         hasBodyChat: true,
         createdAt: true,
         updatedAt: true,
+        organizationId: true,
         organization: {
           select: {
             id: true,
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
         hasBodyChat: true,
         createdAt: true,
         updatedAt: true,
+        organizationId: true,
         organization: {
           select: {
             id: true,
