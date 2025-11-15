@@ -73,14 +73,16 @@ export default function EditOrganizationPage({ params }: { params: Promise<{ id:
       if (org) {
         // Заполняем форму данными организации
         // Нормализуем subject_type: убеждаемся, что значение соответствует ожидаемым
-        // Проверяем все возможные варианты значения из базы данных
+        // Приводим к строке для проверки, так как тип может быть строгим
+        const orgSubjectType = String(org.subject_type || "");
         let normalizedSubjectType: SubjectType = "legal_entity";
-        if (org.subject_type === "sole_proprietor" || 
-            org.subject_type === "individual_entrepreneur" ||
-            org.subject_type === "ИП") {
+        
+        if (orgSubjectType === "sole_proprietor" || 
+            orgSubjectType === "individual_entrepreneur" ||
+            orgSubjectType === "ИП") {
           normalizedSubjectType = "sole_proprietor";
-        } else if (org.subject_type === "legal_entity" || 
-                   org.subject_type === "Юридическое лицо") {
+        } else if (orgSubjectType === "legal_entity" || 
+                   orgSubjectType === "Юридическое лицо") {
           normalizedSubjectType = "legal_entity";
         }
         
