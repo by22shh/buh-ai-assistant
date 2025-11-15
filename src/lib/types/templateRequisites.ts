@@ -60,10 +60,13 @@ export interface TemplatePlaceholderBinding {
   fieldDefinition?: RequisiteField;
 }
 
+export type RequisitesMode = "fields_only" | "placeholders_only" | "both";
+
 export interface TemplateRequisitesConfig {
   fields?: RequisiteField[];
   placeholderBindings?: TemplatePlaceholderBinding[];
   appendMode?: "auto" | "disabled";
+  requisitesMode?: RequisitesMode; // Режим отображения реквизитов для пользователя
   version?: string;
   lastUpdated?: string;
   updatedBy?: string;

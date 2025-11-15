@@ -58,9 +58,14 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
         })
         .then(data => {
           const allFields: RequisiteField[] = [];
+          const requisitesMode = data?.requisitesConfig?.requisitesMode || "both";
 
-          // Загружаем поля из настроенных реквизитов
-          if (data?.requisitesConfig?.fields && Array.isArray(data.requisitesConfig.fields)) {
+          // Загружаем поля из настроенных реквизитов (если режим позволяет)
+          if (
+            (requisitesMode === "fields_only" || requisitesMode === "both") &&
+            data?.requisitesConfig?.fields && 
+            Array.isArray(data.requisitesConfig.fields)
+          ) {
             const normalizedFields: RequisiteField[] = data.requisitesConfig.fields
               .filter((field: any) => field.enabled !== false)
               .map((field: any, index: number) => {
@@ -108,8 +113,12 @@ export default function DocumentRequisitesPage({ params }: { params: Promise<{ i
             allFields.push(...normalizedFields);
           }
 
-          // Загружаем плейсхолдеры из тела шаблона
-          if (data?.requisitesConfig?.placeholderBindings && Array.isArray(data.requisitesConfig.placeholderBindings)) {
+          // Загружаем плейсхолдеры из тела шаблона (если режим позволяет)
+          if (
+            (requisitesMode === "placeholders_only" || requisitesMode === "both") &&
+            data?.requisitesConfig?.placeholderBindings && 
+            Array.isArray(data.requisitesConfig.placeholderBindings)
+          ) {
             const placeholderFields: RequisiteField[] = data.requisitesConfig.placeholderBindings.map((binding: any, index: number) => {
               // Используем name плейсхолдера как code, чтобы можно было подставить значение
               const placeholderCode = binding.name || `placeholder_${index + 1}`;

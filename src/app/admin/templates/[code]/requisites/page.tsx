@@ -26,10 +26,13 @@ interface RequisiteField {
   order: number;
 }
 
+type RequisitesMode = "fields_only" | "placeholders_only" | "both";
+
 interface TemplateRequisitesConfig {
   templateCode: string;
   version: string;
   fields: RequisiteField[];
+  requisitesMode?: RequisitesMode;
   lastUpdated: string;
   updatedBy: string;
 }
@@ -251,28 +254,38 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
       if (response.ok) {
         const data = await response.json();
         setConfig(data);
-        if (data.requisitesConfig && data.requisitesConfig.fields) {
-          const storedFields = data.requisitesConfig.fields as any[];
-          // Убираем autofillFromOrg из загруженных полей, так как это поле больше не используется
-          // Администратор не должен выбирать, что подтягивать - это делает пользователь
-          const orderedFields = storedFields
-            .map((field, index) => {
-              // Создаем новый объект без autofillFromOrg
-              const cleanField: RequisiteField = {
-                name: field.name,
-                label: field.label,
-                type: field.type || 'text',
-                required: Boolean(field.required),
-                enabled: field.enabled !== false, // по умолчанию включено
-                placeholder: field.placeholder || undefined,
-                validation: field.validation || undefined,
-                options: field.options || undefined,
-                order: field.order ?? index + 1,
-              };
-              return cleanField;
-            })
-            .sort((a, b) => a.order - b.order);
-          setFields(orderedFields);
+        if (data.requisitesConfig) {
+          // Загружаем режим отображения реквизитов
+          if (data.requisitesConfig.requisitesMode) {
+            setRequisitesMode(data.requisitesConfig.requisitesMode);
+          } else {
+            // По умолчанию "both" если не указано
+            setRequisitesMode("both");
+          }
+
+          if (data.requisitesConfig.fields) {
+            const storedFields = data.requisitesConfig.fields as any[];
+            // Убираем autofillFromOrg из загруженных полей, так как это поле больше не используется
+            // Администратор не должен выбирать, что подтягивать - это делает пользователь
+            const orderedFields = storedFields
+              .map((field, index) => {
+                // Создаем новый объект без autofillFromOrg
+                const cleanField: RequisiteField = {
+                  name: field.name,
+                  label: field.label,
+                  type: field.type || 'text',
+                  required: Boolean(field.required),
+                  enabled: field.enabled !== false, // по умолчанию включено
+                  placeholder: field.placeholder || undefined,
+                  validation: field.validation || undefined,
+                  options: field.options || undefined,
+                  order: field.order ?? index + 1,
+                };
+                return cleanField;
+              })
+              .sort((a, b) => a.order - b.order);
+            setFields(orderedFields);
+          }
         }
       } else if (response.status === 404) {
         // Конфигурация не найдена - используем стандартные поля
@@ -317,6 +330,7 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         templateCode,
         requisitesConfig: {
           fields: sortedFields,
+          requisitesMode: requisitesMode,
           version: template?.version || '1.0',
           lastUpdated: new Date().toISOString(),
           updatedBy: user?.email || 'admin'
@@ -445,12 +459,82 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
             </CardContent>
           </Card>
 
+          {/* Режим отображения реквизитов */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Режим отображения реквизитов</CardTitle>
+              <CardDescription>
+                Выберите, какие реквизиты будут доступны пользователям при заполнении документа
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    type="radio"
+                    id="mode_fields_only"
+                    name="requisitesMode"
+                    value="fields_only"
+                    checked={requisitesMode === "fields_only"}
+                    onChange={(e) => setRequisitesMode(e.target.value as RequisitesMode)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="mode_fields_only" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Только реквизиты из настроек</div>
+                    <div className="text-sm text-muted-foreground">
+                      Пользователи увидят только поля, настроенные в разделе "Поля реквизитов" ниже
+                    </div>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    type="radio"
+                    id="mode_placeholders_only"
+                    name="requisitesMode"
+                    value="placeholders_only"
+                    checked={requisitesMode === "placeholders_only"}
+                    onChange={(e) => setRequisitesMode(e.target.value as RequisitesMode)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="mode_placeholders_only" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Только плейсхолдеры из тела документа</div>
+                    <div className="text-sm text-muted-foreground">
+                      Пользователи увидят только плейсхолдеры, найденные в теле шаблона (настраиваются в разделе "Тело шаблона")
+                    </div>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    type="radio"
+                    id="mode_both"
+                    name="requisitesMode"
+                    value="both"
+                    checked={requisitesMode === "both"}
+                    onChange={(e) => setRequisitesMode(e.target.value as RequisitesMode)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="mode_both" className="flex-1 cursor-pointer">
+                    <div className="font-medium">И реквизиты из настроек, и плейсхолдеры</div>
+                    <div className="text-sm text-muted-foreground">
+                      Пользователи увидят и настроенные поля, и плейсхолдеры из тела документа
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Список полей реквизитов */}
           <Card>
             <CardHeader>
               <CardTitle>Поля реквизитов</CardTitle>
               <CardDescription>
                 Настройте какие поля будут доступны пользователям при заполнении реквизитов для этого шаблона
+                {requisitesMode === "placeholders_only" && (
+                  <span className="block mt-1 text-amber-600">
+                    ⚠️ В текущем режиме эти поля не будут отображаться пользователям
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
