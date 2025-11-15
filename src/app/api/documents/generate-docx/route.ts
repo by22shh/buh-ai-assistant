@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } from 'docx';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { resolveStoredPath } from '@/lib/services/templateStorage';
 import type { TemplatePlaceholderBinding } from '@/lib/types/templateRequisites';
+import type { RequisiteItem } from '@/lib/services/templateRenderer';
 
 type PlaceholderSource = 'requisite' | 'organization' | 'system' | 'custom';
 
@@ -212,19 +213,19 @@ function ensureRenderDataPlaceholders(renderData: Record<string, any>, placehold
   });
 }
 
-function buildRequisitesLines(
+function buildRequisitesData(
   fields: NormalizedField[],
   requisites?: Record<string, any> | null,
   organization?: Record<string, any> | null
-): string[] {
-  const lines: string[] = [];
+): RequisiteItem[] {
+  const items: RequisiteItem[] = [];
   const seen = new Set<string>();
 
-  const addLine = (label: string, value: unknown, code: string) => {
+  const addItem = (label: string, value: unknown, code: string) => {
     const normalized = normalizeValue(value);
     if (!normalized || seen.has(code)) return;
     seen.add(code);
-    lines.push(`${label}: ${normalized}`);
+    items.push({ label, value: normalized });
   };
 
   // Добавляем только те реквизиты, которые настроены администратором в шаблоне
@@ -234,11 +235,20 @@ function buildRequisitesLines(
     // Сначала берем значение из requisites (то, что пользователь заполнил),
     // затем из organization (если не заполнено)
     const value = requisites?.[field.code] ?? organization?.[field.code];
-    addLine(label, value, field.code);
+    addItem(label, value, field.code);
   });
 
   // Убрали fallback - теперь используются только реквизиты, настроенные администратором
-  return lines;
+  return items;
+}
+
+// Для обратной совместимости с XML-генерацией
+function buildRequisitesLines(
+  fields: NormalizedField[],
+  requisites?: Record<string, any> | null,
+  organization?: Record<string, any> | null
+): string[] {
+  return buildRequisitesData(fields, requisites, organization).map(item => `${item.label}: ${item.value}`);
 }
 
 function appendRequisitesXml(xml: string, lines: string[]): string {
@@ -255,6 +265,59 @@ function appendRequisitesXml(xml: string, lines: string[]): string {
   return `${xml.slice(0, closingIndex)}${block}${xml.slice(closingIndex)}`;
 }
 
+function buildRequisitesTableDocx(items: RequisiteItem[]): (Paragraph | Table)[] {
+  if (!items.length) return [];
+
+  const result: (Paragraph | Table)[] = [
+    new Paragraph({ text: '', spacing: { before: 600 } }),
+    new Paragraph({ text: 'РЕКВИЗИТЫ', heading: HeadingLevel.HEADING_2, spacing: { after: 200 } }),
+  ];
+
+  // Создаем таблицу с двумя колонками: Название и Значение
+  const rows = items.map((item) => {
+    return new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun(item.label)],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          width: {
+            size: 40,
+            type: WidthType.PERCENTAGE,
+          },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun(item.value)],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          width: {
+            size: 60,
+            type: WidthType.PERCENTAGE,
+          },
+        }),
+      ],
+    });
+  });
+
+  const table = new Table({
+    rows,
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE,
+    },
+  });
+
+  result.push(table);
+  return result;
+}
+
+// Для обратной совместимости с XML-генерацией
 function buildRequisitesParagraphsDocx(lines: string[]): Paragraph[] {
   if (!lines.length) return [];
 
@@ -413,8 +476,8 @@ async function generateFallbackDoc(params: {
   }
 
   if (params.config.appendMode !== 'disabled') {
-    const lines = buildRequisitesLines(params.config.fields, params.requisites, params.organization);
-    buildRequisitesParagraphsDocx(lines).forEach((paragraph) => children.push(paragraph));
+    const items = buildRequisitesData(params.config.fields, params.requisites, params.organization);
+    buildRequisitesTableDocx(items).forEach((element) => children.push(element));
   }
 
   const doc = new DocxDocument({

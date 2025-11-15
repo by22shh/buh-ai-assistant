@@ -6,7 +6,7 @@ import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 import mammoth from 'mammoth';
 import { prisma } from '@/lib/prisma';
-import { DEFAULT_APPEND_MODE, generateFromTemplateBody, parseConfig, type NormalizedConfig } from '@/lib/services/templateRenderer';
+import { DEFAULT_APPEND_MODE, generateFromTemplateBody, parseConfig, type NormalizedConfig, buildRequisitesData } from '@/lib/services/templateRenderer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -261,40 +261,88 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Реквизиты
-    if (requisites && Object.keys(requisites).length > 0) {
+    // Реквизиты в виде таблицы
+    if (config.fields.length > 0 && (requisites || organization)) {
       yPosition -= 20;
 
-      if (yPosition < margin + 100) {
+      if (yPosition < margin + 200) {
         page = pdfDoc.addPage([pageWidth, pageHeight]);
         yPosition = pageHeight - margin;
       }
 
       drawText('РЕКВИЗИТЫ', { fontSize: 14, bold: true, spacing: 18 });
-      yPosition -= 10;
+      yPosition -= 15;
 
-      // Информация об организации
-      if (organization) {
-        if (organization.name_full) {
-          drawText(`Полное наименование: ${organization.name_full}`, { fontSize: 11 });
-        }
-        if (organization.inn) {
-          drawText(`ИНН: ${organization.inn}`, { fontSize: 11 });
-        }
-        if (organization.kpp) {
-          drawText(`КПП: ${organization.kpp}`, { fontSize: 11 });
-        }
-        if (organization.ogrn) {
-          drawText(`ОГРН: ${organization.ogrn}`, { fontSize: 11 });
-        }
-      }
+      // Получаем данные реквизитов
+      const items = buildRequisitesData(config.fields, requisites, organization);
 
-      // Дополнительные реквизиты
-      for (const [key, value] of Object.entries(requisites)) {
-        if (value && typeof value === 'string') {
-          const label = formatRequisiteLabel(key);
-          drawText(`${label}: ${value}`, { fontSize: 11 });
+      if (items.length > 0) {
+        const tableStartY = yPosition;
+        const rowHeight = 20;
+        const labelWidth = maxWidth * 0.4; // 40% для названия
+        const valueWidth = maxWidth * 0.6; // 60% для значения
+        const fontSize = 11;
+
+        // Рисуем таблицу
+        let rowsDrawn = 0;
+        for (let index = 0; index < items.length; index++) {
+          const item = items[index];
+          let rowY = tableStartY - (rowsDrawn * rowHeight);
+
+          // Проверяем, нужна ли новая страница
+          if (rowY < margin + 50) {
+            page = pdfDoc.addPage([pageWidth, pageHeight]);
+            yPosition = pageHeight - margin;
+            tableStartY = yPosition;
+            rowY = tableStartY;
+            rowsDrawn = 0;
+          }
+
+          // Рисуем границы ячеек
+          page.drawRectangle({
+            x: margin,
+            y: rowY - rowHeight,
+            width: maxWidth,
+            height: rowHeight,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 0.5,
+          });
+
+          // Разделительная линия между колонками
+          page.drawLine({
+            start: { x: margin + labelWidth, y: rowY },
+            end: { x: margin + labelWidth, y: rowY - rowHeight },
+            thickness: 0.5,
+            color: rgb(0, 0, 0),
+          });
+
+          // Название реквизита (левая колонка)
+          page.drawText(item.label, {
+            x: margin + 5,
+            y: rowY - 15,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+
+          // Значение реквизита (правая колонка)
+          // Разбиваем длинные значения на несколько строк
+          const valueLines = item.value.split('\n');
+          valueLines.forEach((line, lineIndex) => {
+            page.drawText(line, {
+              x: margin + labelWidth + 5,
+              y: rowY - 15 - (lineIndex * (fontSize + 2)),
+              size: fontSize,
+              font: font,
+              color: rgb(0, 0, 0),
+              maxWidth: valueWidth - 10,
+            });
+          });
+          
+          rowsDrawn++;
         }
+
+        yPosition = tableStartY - (rowsDrawn * rowHeight) - 10;
       }
     }
 

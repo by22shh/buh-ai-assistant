@@ -206,19 +206,24 @@ function ensureRenderDataPlaceholders(renderData: Record<string, any>, placehold
   });
 }
 
-export function buildRequisitesLines(
+export interface RequisiteItem {
+  label: string;
+  value: string;
+}
+
+export function buildRequisitesData(
   fields: NormalizedField[],
   requisites?: Record<string, any> | null,
   organization?: Record<string, any> | null
-): string[] {
-  const lines: string[] = [];
+): RequisiteItem[] {
+  const items: RequisiteItem[] = [];
   const seen = new Set<string>();
 
-  const addLine = (label: string, value: unknown, code: string) => {
+  const addItem = (label: string, value: unknown, code: string) => {
     const normalized = normalizeValue(value);
     if (!normalized || seen.has(code)) return;
     seen.add(code);
-    lines.push(`${label}: ${normalized}`);
+    items.push({ label, value: normalized });
   };
 
   // Добавляем только те реквизиты, которые настроены администратором в шаблоне
@@ -228,11 +233,20 @@ export function buildRequisitesLines(
     // Сначала берем значение из requisites (то, что пользователь заполнил),
     // затем из organization (если не заполнено)
     const value = requisites?.[field.code] ?? organization?.[field.code];
-    addLine(label, value, field.code);
+    addItem(label, value, field.code);
   });
 
   // Убрали fallback - теперь используются только реквизиты, настроенные администратором
-  return lines;
+  return items;
+}
+
+// Для обратной совместимости
+export function buildRequisitesLines(
+  fields: NormalizedField[],
+  requisites?: Record<string, any> | null,
+  organization?: Record<string, any> | null
+): string[] {
+  return buildRequisitesData(fields, requisites, organization).map(item => `${item.label}: ${item.value}`);
 }
 
 function appendRequisitesXml(xml: string, lines: string[]): string {
