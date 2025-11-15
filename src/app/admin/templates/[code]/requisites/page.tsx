@@ -535,6 +535,54 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
             </CardContent>
           </Card>
 
+          {/* Режим добавления реквизитов */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Режим добавления реквизитов</CardTitle>
+              <CardDescription>
+                Управляет тем, будет ли блок реквизитов добавляться автоматически в конце документа
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    type="radio"
+                    id="append_auto"
+                    name="appendMode"
+                    value="auto"
+                    checked={appendMode === "auto"}
+                    onChange={(e) => setAppendMode(e.target.value as "auto" | "disabled")}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="append_auto" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Автоматически добавлять блок реквизитов</div>
+                    <div className="text-sm text-muted-foreground">
+                      В конце документа появится раздел с реквизитами, если их нет в шаблоне
+                    </div>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    type="radio"
+                    id="append_disabled"
+                    name="appendMode"
+                    value="disabled"
+                    checked={appendMode === "disabled"}
+                    onChange={(e) => setAppendMode(e.target.value as "auto" | "disabled")}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="append_disabled" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Не добавлять автоматически</div>
+                    <div className="text-sm text-muted-foreground">
+                      Финальный документ останется как в шаблоне, без автоматического блока реквизитов
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Список полей реквизитов */}
           <Card>
             <CardHeader>
