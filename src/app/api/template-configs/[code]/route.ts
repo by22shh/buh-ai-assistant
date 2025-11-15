@@ -53,17 +53,23 @@ export async function GET(
 
     // Объединяем placeholderBindings из конфигурации и placeholders из templateBody
     const requisitesConfig = config.requisitesConfig as any;
-    const placeholderBindingsFromConfig = requisitesConfig?.placeholderBindings || [];
-    const placeholdersFromBody = Array.isArray(templateBody?.placeholders) ? templateBody.placeholders : [];
+    const placeholderBindingsFromConfig = Array.isArray(requisitesConfig?.placeholderBindings) 
+      ? requisitesConfig.placeholderBindings 
+      : [];
+    const placeholdersFromBody = Array.isArray(templateBody?.placeholders) 
+      ? templateBody.placeholders 
+      : [];
 
     // Если в конфигурации нет placeholderBindings, но есть в templateBody, используем их
     let finalPlaceholderBindings = placeholderBindingsFromConfig;
     if (placeholderBindingsFromConfig.length === 0 && placeholdersFromBody.length > 0) {
       // Преобразуем placeholders из templateBody в формат placeholderBindings
-      finalPlaceholderBindings = placeholdersFromBody.map((placeholder: any) => ({
-        name: placeholder.name || placeholder.normalized,
-        label: placeholder.label || placeholder.suggestedLabel || placeholder.name || placeholder.normalized,
-      }));
+      finalPlaceholderBindings = placeholdersFromBody
+        .filter((placeholder: any) => placeholder && (placeholder.name || placeholder.normalized))
+        .map((placeholder: any) => ({
+          name: placeholder.name || placeholder.normalized,
+          label: placeholder.label || placeholder.suggestedLabel || placeholder.name || placeholder.normalized,
+        }));
     }
 
     // Если есть placeholderBindings, добавляем их в requisitesConfig
