@@ -215,7 +215,6 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
   const [config, setConfig] = useState<TemplateRequisitesConfig | null>(null);
   const [fields, setFields] = useState<RequisiteField[]>(standardFields);
   const [requisitesMode, setRequisitesMode] = useState<RequisitesMode>("both");
-  const [appendMode, setAppendMode] = useState<"auto" | "disabled">("auto");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -263,14 +262,6 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
           } else {
             // По умолчанию "both" если не указано
             setRequisitesMode("both");
-          }
-
-          // Загружаем режим добавления реквизитов
-          if (data.requisitesConfig.appendMode) {
-            setAppendMode(data.requisitesConfig.appendMode);
-          } else {
-            // По умолчанию "auto" если не указано
-            setAppendMode("auto");
           }
 
           if (data.requisitesConfig.fields) {
@@ -341,7 +332,6 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
         requisitesConfig: {
           fields: sortedFields,
           requisitesMode: requisitesMode,
-          appendMode: appendMode,
           version: template?.version || '1.0',
           lastUpdated: new Date().toISOString(),
           updatedBy: user?.email || 'admin'
@@ -528,54 +518,6 @@ export default function AdminTemplateRequisitesPage({ params }: { params: Promis
                     <div className="font-medium">И реквизиты из настроек, и плейсхолдеры</div>
                     <div className="text-sm text-muted-foreground">
                       Пользователи увидят и настроенные поля, и плейсхолдеры из тела документа
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Режим добавления реквизитов */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Режим добавления реквизитов</CardTitle>
-              <CardDescription>
-                Управляет тем, будет ли блок реквизитов добавляться автоматически в конце документа
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <input
-                    type="radio"
-                    id="append_auto"
-                    name="appendMode"
-                    value="auto"
-                    checked={appendMode === "auto"}
-                    onChange={(e) => setAppendMode(e.target.value as "auto" | "disabled")}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="append_auto" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Автоматически добавлять блок реквизитов</div>
-                    <div className="text-sm text-muted-foreground">
-                      В конце документа появится раздел с реквизитами, если их нет в шаблоне
-                    </div>
-                  </label>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <input
-                    type="radio"
-                    id="append_disabled"
-                    name="appendMode"
-                    value="disabled"
-                    checked={appendMode === "disabled"}
-                    onChange={(e) => setAppendMode(e.target.value as "auto" | "disabled")}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="append_disabled" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Не добавлять автоматически</div>
-                    <div className="text-sm text-muted-foreground">
-                      Финальный документ останется как в шаблоне, без автоматического блока реквизитов
                     </div>
                   </label>
                 </div>
