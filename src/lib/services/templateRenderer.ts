@@ -116,6 +116,10 @@ function normalizeField(field: any): NormalizedField | null {
   const code = typeof field?.code === 'string' && field.code.length > 0 ? field.code : field?.name;
   if (!code) return null;
 
+  // Пропускаем поля, которые не включены администратором
+  // В документ должны попадать только те реквизиты, которые настроены в шаблоне
+  if (field.enabled === false) return null;
+
   const label = typeof field?.label === 'string' && field.label.length > 0
     ? field.label
     : DEFAULT_REQUISITE_LABELS[code] || code;
@@ -217,19 +221,17 @@ export function buildRequisitesLines(
     lines.push(`${label}: ${normalized}`);
   };
 
+  // Добавляем только те реквизиты, которые настроены администратором в шаблоне
+  // Не добавляем fallback реквизиты - только то, что администратор явно настроил
   fields.forEach((field) => {
     const label = field.label || DEFAULT_REQUISITE_LABELS[field.code] || field.code;
+    // Сначала берем значение из requisites (то, что пользователь заполнил),
+    // затем из organization (если не заполнено)
     const value = requisites?.[field.code] ?? organization?.[field.code];
     addLine(label, value, field.code);
   });
 
-  const fallbackKeys = ['name_full', 'inn', 'kpp', 'ogrn', 'address_legal', 'phone', 'email'];
-  fallbackKeys.forEach((key) => {
-    const label = DEFAULT_REQUISITE_LABELS[key] || key;
-    const value = requisites?.[key] ?? organization?.[key];
-    addLine(label, value, key);
-  });
-
+  // Убрали fallback - теперь используются только реквизиты, настроенные администратором
   return lines;
 }
 
