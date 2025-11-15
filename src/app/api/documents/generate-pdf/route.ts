@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
       const items = buildRequisitesData(config.fields, requisites, organization);
 
       if (items.length > 0) {
-        const tableStartY = yPosition;
+        let tableStartY = yPosition;
         const rowHeight = 20;
         const labelWidth = maxWidth * 0.4; // 40% для названия
         const valueWidth = maxWidth * 0.6; // 60% для значения
