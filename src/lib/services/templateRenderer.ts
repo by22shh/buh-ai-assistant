@@ -249,18 +249,75 @@ export function buildRequisitesLines(
   return buildRequisitesData(fields, requisites, organization).map(item => `${item.label}: ${item.value}`);
 }
 
-function appendRequisitesXml(xml: string, lines: string[]): string {
-  if (!lines.length) return xml;
+function appendRequisitesTableXml(xml: string, items: RequisiteItem[]): string {
+  if (!items.length) return xml;
+
+  // Создаем XML для таблицы Word
+  const tableRows = items.map((item) => {
+    return `
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2400" w:type="pct"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t xml:space="preserve">${escapeXml(item.label)}</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3600" w:type="pct"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:t xml:space="preserve">${escapeXml(item.value)}</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>`;
+  }).join('');
+
   const block = [
     '<w:p><w:r><w:t xml:space="preserve">\u00a0</w:t></w:r></w:p>',
     '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>РЕКВИЗИТЫ</w:t></w:r></w:p>',
-    ...lines.map((line) => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`),
+    '<w:tbl>',
+    '<w:tblPr>',
+    '<w:tblW w:w="0" w:type="auto"/>',
+    '<w:tblBorders>',
+    '<w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '<w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '<w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>',
+    '</w:tblBorders>',
+    '</w:tblPr>',
+    tableRows,
+    '</w:tbl>',
   ].join('');
 
   const closingIndex = xml.lastIndexOf('</w:body>');
   if (closingIndex === -1) return xml;
 
   return `${xml.slice(0, closingIndex)}${block}${xml.slice(closingIndex)}`;
+}
+
+// Для обратной совместимости
+function appendRequisitesXml(xml: string, lines: string[]): string {
+  if (!lines.length) return xml;
+  const items: RequisiteItem[] = lines.map(line => {
+    const [label, ...valueParts] = line.split(': ');
+    return {
+      label: label || '',
+      value: valueParts.join(': ') || ''
+    };
+  });
+  return appendRequisitesTableXml(xml, items);
 }
 
 export async function generateFromTemplateBody(params: {
@@ -342,11 +399,11 @@ export async function generateFromTemplateBody(params: {
     !params.config.placeholderBindings.some((binding) => binding.source === 'requisite' || binding.source === 'organization');
 
   if (shouldAppendRequisites) {
-    const lines = buildRequisitesLines(params.config.fields, params.requisites, params.organization);
-    if (lines.length) {
+    const items = buildRequisitesData(params.config.fields, params.requisites, params.organization);
+    if (items.length) {
       const documentXml = zip.file('word/document.xml')?.asText();
       if (documentXml) {
-        zip.file('word/document.xml', appendRequisitesXml(documentXml, lines));
+        zip.file('word/document.xml', appendRequisitesTableXml(documentXml, items));
       }
     }
   }
